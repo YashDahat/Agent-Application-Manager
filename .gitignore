@@ -1,0 +1,15 @@
+# Node modules
+Jobs/App/application-manager/node_modules
+Jobs/MCP-Client/node_modules
+Jobs/MCP-Server/node_modules
+# Logs
+logs
+*.log
+
+# Build files
+Jobs/MCP-Client/build
+Jobs/MCP-Server/build
+# Environment variables
+Jobs/App/application-manager/env
+Jobs/MCP-Client/env
+Jobs/MCP-Server/env
