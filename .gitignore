@@ -10,6 +10,6 @@ logs
 Jobs/MCP-Client/build
 Jobs/MCP-Server/build
 # Environment variables
-Jobs/App/application-manager/env
+Jobs/App/application-manager/.env
 Jobs/MCP-Client/env
 Jobs/MCP-Server/env

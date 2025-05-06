@@ -5,6 +5,10 @@
 const jobsAPIkey = 'e402d996f0mshf9aca12e02fd794p1d736bjsne614c5143f27'; //yashdahat2@gmail.com
 const baseUrl = 'https://linkedin-job-api.p.rapidapi.com/job/search';
 
+const jobsAPIkey2 = 'e402d996f0mshf9aca12e02fd794p1d736bjsne614c5143f27';
+const baseUrl2 = 'https://linkedin-api8.p.rapidapi.com';
+
+
 const dummyData: any = {
     "data": [
         {
@@ -320,11 +324,13 @@ const dummyData: any = {
 
 
 export interface JobDetails {
+    jobId: string;
     jobTitle: string;
     jobDescription?: string;
     companyName: string;
     jobUrl: URL;
     skills?: string[];
+    location: string;
 }
 
 function jobDataFormatter(data: any): JobDetails[]{
@@ -334,11 +340,35 @@ function jobDataFormatter(data: any): JobDetails[]{
         let jobsDetails: JobDetails[] = [];
         for(let i=0; i<items.length; i++){
             const jobDetails: JobDetails = {
+                jobId: '-',
                 jobTitle: items[i]['title'],
                 jobDescription: items[i]['description'],
                 companyName: items[i]['companyDetails']['name'],
                 jobUrl: items[i]['jobPostingUrl'],
-                skills: items[i]['skillsDescription']
+                skills: items[i]['skillsDescription'],
+                location: '-'
+            }
+            jobsDetails.push(jobDetails);
+        }
+        return jobsDetails;
+    }
+    return [];
+}
+
+function jobDataFormatterV2(data: any): JobDetails[]{
+    //console.log("Data we got:", data);
+    if(Array.isArray(data)){
+        let items: any[] = data;
+        let jobsDetails: JobDetails[] = [];
+        for(let i=0; i<items.length; i++){
+            const jobDetails: JobDetails = {
+                jobId: items[i]['id'],
+                jobTitle: items[i]['title'],
+                jobDescription: '-',
+                companyName: items[i]['company']['name'],
+                jobUrl: items[i]['url'],
+                skills: [],
+                location: items[i]['location']
             }
             jobsDetails.push(jobDetails);
         }
@@ -371,3 +401,74 @@ export async function getJobsList(role: string, location: string, date_posted: s
     //return  jobDataFormatter(dummyData.data);
 }
 
+
+export async function getJobsListV2(role: string, location: string, date_posted: string): Promise<JobDetails[]> {
+    console.log('Role:', role, ', location:', location, ', date posted:', date_posted);
+    const encodedRole = encodeURIComponent(role);
+    const encodedLocation = encodeURIComponent(location);
+    const encodedDatePosted = encodeURIComponent(date_posted);
+    console.log('API called to get job details!')
+
+    //Search for location
+    //if locations array is empty throw an error
+    //Take the first location from the array
+    const urlForLocations = baseUrl2 + '/search-locations?keyword=' + encodedLocation;
+    const optionsForLocations = {
+        method: 'GET',
+        headers: {
+            'x-rapidapi-key': jobsAPIkey2,
+            'x-rapidapi-host': 'linkedin-api8.p.rapidapi.com'
+        },
+    }
+
+    const responseForLocation = await fetch(urlForLocations, optionsForLocations);
+    const dataForLocations = await responseForLocation.json();
+    if(!(dataForLocations.success as boolean)){
+        throw new Error('Facing issues in finding locations.')
+    }
+    const locationId = dataForLocations.data.items[0].id;
+    console.log('Locations ID for searching:', locationId);
+    const locationIdFiltered = locationId.match(/\d+/);
+    //Search for jobs according to given parameters
+    const urlForJobSearch = baseUrl2 + '/search-jobs-v2?keywords=' + encodedRole + '&locationId=' + locationIdFiltered + '&datePosted=' + encodedDatePosted;
+    const optionsForJobSearch = {
+        method: 'GET',
+        headers: {
+            'x-rapidapi-key': jobsAPIkey2,
+            'x-rapidapi-host': 'linkedin-api8.p.rapidapi.com'
+        },
+    }
+    const responseForJobs = await fetch(urlForJobSearch, optionsForJobSearch);
+    const dataForJobs = await responseForJobs.json();
+    if(!dataForJobs.success){
+        throw new Error('Facing issues in finding jobs.')
+    }
+
+    const data = jobDataFormatterV2(dataForJobs.data);
+    console.log('Jobs we got:', data);
+    return data;
+}
+
+export async function getJobDetails(jobId: string): Promise<JobDetails> {
+    const urlForJobDetails = baseUrl2 + '/get-job-details?id=' + jobId;
+    const optionsForJobSearch = {
+        method: 'GET',
+        headers: {
+            'x-rapidapi-key': jobsAPIkey2,
+            'x-rapidapi-host': 'linkedin-api8.p.rapidapi.com'
+        },
+    }
+
+    const response = await fetch(urlForJobDetails, optionsForJobSearch);
+    const data = await response.json();
+    console.log('Response got from server for job details:', data);
+    const jobDetails = data.data;
+    return {
+        jobId: jobDetails.id,
+        jobTitle: jobDetails.title,
+        jobDescription: jobDetails.description,
+        companyName: jobDetails.company.name,
+        jobUrl: jobDetails.url,
+        location: jobDetails.location
+    } as JobDetails
+}

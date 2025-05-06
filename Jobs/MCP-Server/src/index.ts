@@ -2,7 +2,7 @@ import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js";
 import {SSEServerTransport} from "@modelcontextprotocol/sdk/server/sse.js";
 import {z} from "zod";
 import express from "express";
-import {getJobsList} from "./jobs-service/JobsService.js";
+import {getJobDetails, getJobsList, getJobsListV2} from "./jobs-service/JobsService.js";
 import {appendGoogleSheetRows, createGoogleSheet,} from "./google-services/GoogleServices.js";
 import dotenv from 'dotenv';
 import {google} from "googleapis";
@@ -220,10 +220,36 @@ app.post("/messages", (req, res) => {
 });
 
 app.post("/get_jobs", async (req, res) => {
-    const response = await getJobsList('software engineer', 'bengaluru', 'Past 24 hours');
-    res.send(JSON.stringify(response));
+    try {
+        const { role, location, date_posted } = req.body;
+        if (!role || !location || !date_posted) {
+            res.status(400).json({ error: "Missing role, location, or date_posted in request body." });
+        }else{
+            console.log('Role:', role, ', Location:', location, ', Date posted:', date_posted);
+            const response = await getJobsListV2(role, location, date_posted);
+            res.status(200).json(response);
+        }
+    } catch (error) {
+        console.error("Error fetching job listings:", error);
+        res.status(500).json({ error: "Failed to fetch job listings." });
+    }
 });
 
+app.get("/get_job_details", async (req, res) => {
+    const { jobId } = req.query;
+
+    if (!jobId || typeof jobId !== 'string') {
+        res.status(400).json({ error: "Missing or invalid 'jobId' parameter" });
+    }else{
+        try {
+            const jobDetails = await getJobDetails(jobId);
+            res.status(200).json(jobDetails);
+        } catch (error) {
+            console.error("Error fetching job details:", error);
+            res.status(500).json({ error: "Failed to fetch job details" });
+        }
+    }
+});
 //Google auth server
 
 // Step 1: Send user to Google for consent
@@ -243,23 +269,7 @@ app.get('/oauth2callback', async (req, res) => {
     const code = req.query.code as string;
     const {tokens} = await oauth2Client.getToken(code);
     console.log("Tokens:", tokens);
-    //oauth2Client.setCredentials(tokens);
-
-    //Creating the spreadsheet
-    // const response = await createGoogleSheet('Job_Listing', oauth2Client)
-    // const regex = /\/d\/([a-zA-Z0-9-_]+)/;
-    // const match = (response.spreadsheetUrl as string).match(regex);
-    // console.log("Spreadsheet Data:", match);
-    // const spreadSheetId = match?.at(1);
-    // console.log("Spreadsheet ID:", spreadSheetId);
-
-    //Accessing use data:
-    // const oauth2 = google.oauth2({version: 'v2', auth: oauth2Client});
-    // const userInfo = await oauth2.userinfo.get();
-    // console.log('User Info :', userInfo);
-
     res.redirect('http://localhost:5173/workspace?access_token=' + tokens.access_token + '&refresh_token=' + tokens.refresh_token);
-    //res.send();
 });
 
 
@@ -364,13 +374,6 @@ wss.on('connection', (ws: WebSocket, request: Request) => {
     console.log('Request received from the server:', request);
     websocketTransport = new WebsocketTransport(ws);
     mcpServer.connect(websocketTransport);
-    // ws.on('message', async (req, res)=>{
-    //     const data = JSON.parse(req.toString());
-    //     console.log('Message was requested:', data);
-    //     if(websocketTransport){
-    //         await websocketTransport.handlePostMessage(data);
-    //     }
-    // });
 })
 
 

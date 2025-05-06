@@ -12,7 +12,11 @@ export function useMessageState<IMessage>(initialState: IMessage[]){
 
     function setMessagesForDisplay(message: IMessage){
         setMessages((prevState) => {
-            return [...prevState, message];
+            if(message.message !== ''){
+                const filteredMessages = prevState.filter((message) => !message.isLoading  )
+                return [...filteredMessages, message];
+            }
+            return prevState;
         })
     }
 
