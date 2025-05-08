@@ -8,6 +8,7 @@ export interface JobDetails {
     jobUrl: URL;
     skills?: string[];
     location: string;
+    isResumeAvailable?: boolean;
 }
 
 export const getJobListing = async (role: string, location: string, datePosted: string): Promise<JobDetails[]>=> {
@@ -26,4 +27,13 @@ export const getJobListing = async (role: string, location: string, datePosted: 
     };
     const response = await fetch(url, options);
     return await response.json() as JobDetails[];
+}
+
+export const getJobDetails = async (id: string) => {
+    const url = baseURL + '/get_job_details?jobId' + id;
+    const options = {
+        method: 'GET'
+    }
+    const response = await fetch(url, options);
+    return await response.json() as JobDetails;
 }

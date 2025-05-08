@@ -204,6 +204,39 @@ Data should be appended in the order and format expected by the sheet (e.g., Job
     }
 );
 
+//Define Prompts
+mcpServer.prompt(
+    'create-resume',
+    'This prompt will be used to create a tailored resume based on the job details provided. Upload this resume to Google Docs and send the URL.',
+    {
+        ReferenceResume: z.string().describe('Base64 or URL of the reference resume file uploaded by the user'),
+        JobDetails: z.string().describe('JSON stringified job details for resume tailoring'),
+    },
+    async ({ ReferenceResume, JobDetails }) => {
+        // Optionally parse job details if needed
+        let jobInfo;
+        try {
+            jobInfo = JSON.parse(JobDetails);
+        } catch {
+            jobInfo = null;
+        }
+
+        console.log('Received ReferenceResume and JobDetails:', jobInfo);
+
+        return {
+            description: 'Resume creation initiated.',
+            messages: [
+                {
+                    role: 'assistant',
+                    content: {
+                        type: 'text',
+                        text: `Received resume and job details. Resume generation in progress...`,
+                    },
+                },
+            ],
+        };
+    }
+);
 
 //Start express server
 app.get("/sse", async (req, res) => {

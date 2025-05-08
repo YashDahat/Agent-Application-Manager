@@ -9,18 +9,13 @@ import {
 } from "@/components/ui/breadcrumb"
 import {Separator} from "@/components/ui/separator"
 import {SidebarInset, SidebarProvider, SidebarTrigger,} from "@/components/ui/sidebar"
-import {ChatInput} from "@/components/ui/chat/chat-input.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {CornerDownLeft, Mic, Paperclip} from "lucide-react";
-import {ChatMessageList} from "@/components/ui/chat/chat-message-list.tsx";
-import {ChatBubble, ChatBubbleAvatar, ChatBubbleMessage} from "@/components/ui/chat/chat-bubble.tsx";
 import {ReactNode, useEffect, useState} from "react";
 import {usePersistedState} from "@/hooks/usePersistedState.tsx";
 import {data, useSearchParams} from "react-router-dom";
 import {MCPClient} from "@/client/MCP_Client.ts";
 import {IMessage, useMessageState} from "@/hooks/useMessageState.tsx";
 import {Input} from "@/components/ui/input.tsx";
-import { Label } from "@/components/ui/label"
 import {
     Select,
     SelectContent,
@@ -30,17 +25,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import {toast} from "sonner";
-import {
-    Table,
-    TableBody,
-    TableCaption,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
+import {Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow,} from "@/components/ui/table"
 import {getJobListing, JobDetails} from "@/services/JobServices.ts";
+import {FilePlus, HardDriveUpload, Loader, Search} from "lucide-react";
+import {LoadingSpinner} from "@/common-components/aam-loader/Loader.tsx";
+import {PdfUploadDialog} from "@/common-components/aam-file-uploader/PdfUploadDialog.tsx";
+import {toast} from "sonner";
+import {Label} from "@/components/ui/label.tsx";
+import {ConfirmCreateResume} from "@/feature/workspace-page/confirm-create-resume-dialog/ConfirmCreateResume.tsx";
 
 
 const access_token = 'access_token';
@@ -61,6 +53,8 @@ export const WorkspacePage = () => {
     const [location, setLocation] = useState<string>('');
     const [datePosted, setDatePosted] = useState<string>('');
     const [jobs, setJobs] = useState<JobDetails[]>([]);
+    const [uploadedResume, setUploadedResume] = useState<File|null>(null);
+    const [isCreateResume, setIsCreateResume] = useState<boolean>(false);
     const init = async () => {
         const c = new MCPClient();
         await c.connectToServer("http://localhost:3000/mcp/connection");
@@ -112,6 +106,25 @@ export const WorkspacePage = () => {
         )
     }
 
+    const handleCreateResume = async () => {
+        //Bring the job details for 3 jobs which don't for which we didn't created resume yet
+        //Call job details api for each such job
+        // Get first 3 jobs without resume
+        // if(jobs.length == 0){
+        //     toast.error('No jobs are selected yet.');
+        //     return;
+        // }
+        // if(!uploadedResume){
+        //     toast.error('No reference resume is uploaded.');
+        //     return;
+        // }
+        //
+        // const jobsToCreateResume = jobs
+        //     .filter(job => !job.isResumeAvailable) // filter jobs without resume
+        //     .slice(0, Math.min(3, jobs.length)); // take first 3
+        //
+        // console.log('Jobs we got for processing:', jobsToCreateResume);
+    }
     useEffect(() => {
         const accessToken = searchParams.get("access_token");
         console.log('Access Token:', accessToken);
@@ -172,13 +185,22 @@ export const WorkspacePage = () => {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button variant={'outline'} onClick={handleJobSearch}>Search</Button>
-                            <Button variant={'outline'} onClick={()=>{console.log('Create resume for the given Job details')}}>Create Resume</Button>
-                            <Button variant={'outline'} onClick={()=>{console.log('Upload data on spreadsheet')}}>Upload data</Button>
+                            <Button variant={'outline'} onClick={handleJobSearch}><Search />Search</Button>
+                            <Button variant={'outline'} onClick={()=>{
+                                setIsCreateResume(true);
+                            }}> <FilePlus />Create Resume</Button>
+                            <PdfUploadDialog name={'Upload Resume'}
+                                             onSave={(file) => {
+                                                 console.log('File uploaded:', file);
+                                                 setUploadedResume(file);
+                                             }}
+                                             icon=<HardDriveUpload/>/>
+                            <Label>
+                                {uploadedResume ? uploadedResume.name : ''}
+                            </Label>
                         </div>
                         <div className={'w-[100%] h-[100vh]'}>
                             <Table>
-                                <TableCaption>A list of your recent invoices.</TableCaption>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Job Id</TableHead>
@@ -186,6 +208,7 @@ export const WorkspacePage = () => {
                                         <TableHead>Company</TableHead>
                                         <TableHead>Link</TableHead>
                                         <TableHead>Location</TableHead>
+                                        <TableHead>Resume Available</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -202,55 +225,12 @@ export const WorkspacePage = () => {
                             </Table>
                         </div>
                     </div>
-                    {/*<div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min">*/}
-                    {/*    <div className="flex flex-col h-full gap-2 p-4">*/}
-                    {/*        /!* Chat messages area (80%) *!/*/}
-                    {/*        <div className="flex-grow-[8] overflow-y-auto">*/}
-                    {/*            <ChatMessageList className="flex flex-col gap-2 pr-2">*/}
-                    {/*                {messages.map((message, index) => {*/}
-                    {/*                    return <ChatBubble key={index} variant={message.variant}>*/}
-                    {/*                        <ChatBubbleAvatar fallback={message.fallBack}/>*/}
-                    {/*                        <ChatBubbleMessage variant={message.variant} isLoading={message.isLoading}>*/}
-                    {/*                            {message.message}*/}
-                    {/*                        </ChatBubbleMessage>*/}
-                    {/*                    </ChatBubble> as ReactNode*/}
-                    {/*                })}*/}
-                    {/*            </ChatMessageList>*/}
-                    {/*        </div>*/}
-
-                    {/*        /!* Input area (20%) anchored at the bottom *!/*/}
-                    {/*        <div className="flex-grow-[2] flex flex-col justify-end">*/}
-                    {/*            <div*/}
-                    {/*                className="relative rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring p-1">*/}
-                    {/*                <ChatInput*/}
-                    {/*                    placeholder="Type your message here..."*/}
-                    {/*                    className="min-h-12 resize-none rounded-lg bg-background border-0 p-3 shadow-none focus-visible:ring-0"*/}
-                    {/*                    value={userMessage}*/}
-                    {/*                    onChange={(event) => {*/}
-                    {/*                        setUserMessage(event.target.value);*/}
-                    {/*                    }}*/}
-                    {/*                />*/}
-                    {/*                <div className="flex items-center p-3 pt-0">*/}
-                    {/*                    <Button variant="ghost" size="icon">*/}
-                    {/*                        <Paperclip className="size-4"/>*/}
-                    {/*                        <span className="sr-only">Attach file</span>*/}
-                    {/*                    </Button>*/}
-
-                    {/*                    <Button variant="ghost" size="icon">*/}
-                    {/*                        <Mic className="size-4"/>*/}
-                    {/*                        <span className="sr-only">Use Microphone</span>*/}
-                    {/*                    </Button>*/}
-
-                    {/*                    <Button size="sm" className="ml-auto gap-1.5" onClick={processQuery}>*/}
-                    {/*                        Send Message*/}
-                    {/*                        <CornerDownLeft className="size-3.5"/>*/}
-                    {/*                    </Button>*/}
-                    {/*                </div>*/}
-                    {/*            </div>*/}
-                    {/*        </div>*/}
-                    {/*    </div>*/}
-                    {/*</div>*/}
                 </div>
+                <ConfirmCreateResume isOpen={isCreateResume}
+                                     onClose={() => {
+                                         setIsCreateResume(false)
+                                     }}
+                                     handleConfirmation={handleCreateResume}/>
             </SidebarInset>
         </SidebarProvider>
     )

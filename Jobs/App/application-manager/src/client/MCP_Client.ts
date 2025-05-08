@@ -1,7 +1,7 @@
 import {Anthropic, Message} from "@anthropic-ai/sdk";
 import {Client} from "@modelcontextprotocol/sdk/client/index.js";
 import {WebSocketClientTransport} from "@modelcontextprotocol/sdk/client/websocket.js"
-import {MessageCreateParamsBase, MessageParam, Tool,} from "@anthropic-ai/sdk/resources/messages/messages.mjs";
+import {MessageCreateParamsBase, MessageParam, Tool} from "@anthropic-ai/sdk/resources/messages/messages.mjs";
 import {IMessage} from "@/feature/workspace-page/WorkspacePage.tsx";
 import {getItem} from "@/utils/localStorage.ts";
 
@@ -17,6 +17,7 @@ export class MCPClient {
     private llm: Anthropic;
     private transport: WebSocketClientTransport | null = null;
     public tools: Tool[] = [];
+    private prompts: any[] = []
     private accessToken : string | null = null;
 
     constructor() {
@@ -44,6 +45,8 @@ export class MCPClient {
                 };
             });
             console.log('Result for Tools:', this.tools);
+            this.prompts = await this.mcp.listPrompts();
+            console.log('Result for prompts:', this.prompts);
         } catch (error) {
             console.error('Error while connecting or fetching tools:', error);
         }
@@ -58,11 +61,12 @@ export class MCPClient {
         ];
 
         console.log('Messages:', messages);
-        const body:{ max_tokens: number; messages: MessageParam[]; model: string; tools: Tool[] }  = {
+        const body:{ max_tokens: number; messages: MessageParam[]; model: string; tools: Tool[]; prompts: any[] }  = {
             model: "claude-3-5-sonnet-20241022",
             max_tokens: 1000,
             messages,
-            tools: this.tools
+            tools: this.tools,
+            prompts: this.prompts
         }
         console.log('Body we got for request:', body);
         const response = await this.llm.messages.create(body);
