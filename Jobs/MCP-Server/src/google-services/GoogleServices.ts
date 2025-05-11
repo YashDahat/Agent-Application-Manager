@@ -89,3 +89,58 @@ export async function appendGoogleSheetRows(
         return null;
     }
 }
+
+// Ensure globalThis.fetch is available in Node.js >= 18
+// If using Node.js < 18, you’ll need to install `node-fetch`
+
+export async function createGoogleDocFromTextAPI(fileName: string, text: string, accessToken: string) {
+    // 1. Create the Google Doc
+    console.log('Access Token:', accessToken);
+    const createResponse = await fetch('https://docs.googleapis.com/v1/documents', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title: fileName }),
+    });
+
+    if (!createResponse.ok) {
+        const error = await createResponse.text();
+        throw new Error(`Failed to create document: ${error}`);
+    }
+
+    const createData = await createResponse.json();
+    const documentId = createData.documentId;
+
+    // 2. Insert text into the newly created doc
+    const insertResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            requests: [
+                {
+                    insertText: {
+                        text,
+                        location: { index: 1 },
+                    },
+                },
+            ],
+        }),
+    });
+
+    if (!insertResponse.ok) {
+        const error = await insertResponse.text();
+        throw new Error(`Failed to insert text: ${error}`);
+    }
+
+    const docUrl = `https://docs.google.com/document/d/${documentId}/edit`;
+
+    return {
+        documentId,
+        url: docUrl,
+    };
+}

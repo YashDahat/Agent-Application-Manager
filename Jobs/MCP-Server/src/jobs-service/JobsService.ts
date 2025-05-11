@@ -6,6 +6,7 @@ const jobsAPIkey = 'e402d996f0mshf9aca12e02fd794p1d736bjsne614c5143f27'; //yashd
 const baseUrl = 'https://linkedin-job-api.p.rapidapi.com/job/search';
 
 const jobsAPIkey2 = 'e402d996f0mshf9aca12e02fd794p1d736bjsne614c5143f27';
+const jobsAPIkey2_prem = '1df230f459mshe2678f3780dc36ep173c79jsn57d8d014103c'; //premium api key - we paid for
 const baseUrl2 = 'https://linkedin-api8.p.rapidapi.com';
 
 
@@ -416,7 +417,7 @@ export async function getJobsListV2(role: string, location: string, date_posted:
     const optionsForLocations = {
         method: 'GET',
         headers: {
-            'x-rapidapi-key': jobsAPIkey2,
+            'x-rapidapi-key': jobsAPIkey2_prem,
             'x-rapidapi-host': 'linkedin-api8.p.rapidapi.com'
         },
     }
@@ -434,7 +435,7 @@ export async function getJobsListV2(role: string, location: string, date_posted:
     const optionsForJobSearch = {
         method: 'GET',
         headers: {
-            'x-rapidapi-key': jobsAPIkey2,
+            'x-rapidapi-key': jobsAPIkey2_prem,
             'x-rapidapi-host': 'linkedin-api8.p.rapidapi.com'
         },
     }

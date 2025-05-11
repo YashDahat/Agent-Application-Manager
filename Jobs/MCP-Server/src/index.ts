@@ -3,7 +3,10 @@ import {SSEServerTransport} from "@modelcontextprotocol/sdk/server/sse.js";
 import {z} from "zod";
 import express from "express";
 import {getJobDetails, getJobsList, getJobsListV2} from "./jobs-service/JobsService.js";
-import {appendGoogleSheetRows, createGoogleSheet,} from "./google-services/GoogleServices.js";
+import {
+    appendGoogleSheetRows, createGoogleDocFromTextAPI,
+    createGoogleSheet
+} from "./google-services/GoogleServices.js";
 import dotenv from 'dotenv';
 import {google} from "googleapis";
 import cors from 'cors';
@@ -29,6 +32,12 @@ const mcpServer = new McpServer({
         tools: {},
     },
 });
+
+const scopes = [
+    'https://www.googleapis.com/auth/documents',
+    'https://www.googleapis.com/auth/drive.file' // optional, for managing files
+];
+
 
 const oauth2Client = new google.auth.OAuth2(
     '1065879422486-46ismsi231snm30vddvuhj5816lugeed.apps.googleusercontent.com',
@@ -204,6 +213,43 @@ Data should be appended in the order and format expected by the sheet (e.g., Job
     }
 );
 
+mcpServer.tool(
+    'upload-markdown-to-google-doc',
+    'Creates a Google Doc with the provided content using the user\'s access token.',
+    {
+        fileName: z.string().describe('The name of the Google Doc to be created.'),
+        fileData: z.string().describe('The markdown or plain text content to be added to the document.'),
+        accessToken: z.string().describe('OAuth 2.0 access token with Google Docs API scope.'),
+    },
+    async ({ fileName, fileData, accessToken }) => {
+        try {
+            const result = await createGoogleDocFromTextAPI(fileName, fileData, accessToken);
+
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify({
+                            docUrl: result.url,
+                            note: 'LLM must return this object exactly as it is, with only the "docUrl" key and mark the response as final using final key, if LLM does not intend to call any further tools',
+                        }, null, 2),
+                    },
+                ],
+            };
+        } catch (err: any) {
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: `❌ Failed to create Google Doc: ${err.message}`,
+                    },
+                ],
+                isError: true,
+            };
+        }
+    }
+);
+
 //Define Prompts
 mcpServer.prompt(
     'create-resume',
@@ -213,24 +259,35 @@ mcpServer.prompt(
         JobDetails: z.string().describe('JSON stringified job details for resume tailoring'),
     },
     async ({ ReferenceResume, JobDetails }) => {
-        // Optionally parse job details if needed
-        let jobInfo;
-        try {
-            jobInfo = JSON.parse(JobDetails);
-        } catch {
-            jobInfo = null;
-        }
-
-        console.log('Received ReferenceResume and JobDetails:', jobInfo);
 
         return {
-            description: 'Resume creation initiated.',
+            description: 'Prompt to generate tailored resume and upload it.',
             messages: [
                 {
-                    role: 'assistant',
+                    role: 'user',
                     content: {
                         type: 'text',
-                        text: `Received resume and job details. Resume generation in progress...`,
+                        text: `
+                        You are a helpful AI assistant.
+                        
+                        Here is a reference resume (in base64 or a downloadable URL) and the job details. Please:
+                        
+                        1. Tailor the resume for the job.
+                        2. Save it as a PDF.
+                        3. Use the "uploadToGoogleDocs" tool to upload the file.
+                        4. Share the Google Docs URL in your response.
+                        5. If tool is not present directly respond with the doc.
+                        
+                        ### Reference Resume (Base64 or URL):
+                        ${ReferenceResume}
+                        
+                        ### Job Details:
+                        ${JobDetails}
+                        
+                        Please respond only with the tailored resume in markdown string and then use the tool to upload it on google drive.
+                        Respond the resume data in the tool call no need to create a separate text message for this.
+                        If tool is not present return the markdown string as it is.
+                        `.trim(),
                     },
                 },
             ],
@@ -292,6 +349,7 @@ app.get('/auth', (req, res) => {
         scope: [
             'https://www.googleapis.com/auth/spreadsheets',
             'https://www.googleapis.com/auth/drive.file',
+            'https://www.googleapis.com/auth/documents'
         ],
     });
     res.redirect(authUrl);
@@ -398,6 +456,24 @@ app.post('/drive/read-doc-url-direct', async (req, res) => {
     } catch (error: any) {
         console.error('Error reading document:', error);
         res.status(500).json({error: `Failed to read document: ${error.message}`});
+    }
+});
+
+app.post('/upload-markdown', async (req, res) => {
+    try {
+        const { fileName, text } = req.body;
+        const accessToken = req.headers.authorization;
+
+        if (!fileName || !text || !accessToken) {
+            res.status(400).json({ error: 'fileName, text, and accessToken are required' });
+            return;
+        }
+
+        const result = await createGoogleDocFromTextAPI(fileName, text, accessToken);
+        res.status(200).json({ message: 'Document created successfully', ...result });
+    } catch (err: any) {
+        console.error('Error creating Google Doc:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
     }
 });
 

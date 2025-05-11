@@ -26,13 +26,14 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import {Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow,} from "@/components/ui/table"
-import {getJobListing, JobDetails} from "@/services/JobServices.ts";
+import {getJobListing, JobDetails, jobDetailsToString} from "@/services/JobServices.ts";
 import {FilePlus, HardDriveUpload, Loader, Search} from "lucide-react";
 import {LoadingSpinner} from "@/common-components/aam-loader/Loader.tsx";
 import {PdfUploadDialog} from "@/common-components/aam-file-uploader/PdfUploadDialog.tsx";
 import {toast} from "sonner";
 import {Label} from "@/components/ui/label.tsx";
 import {ConfirmCreateResume} from "@/feature/workspace-page/confirm-create-resume-dialog/ConfirmCreateResume.tsx";
+import pdfToText from "react-pdftotext";
 
 
 const access_token = 'access_token';
@@ -110,20 +111,40 @@ export const WorkspacePage = () => {
         //Bring the job details for 3 jobs which don't for which we didn't created resume yet
         //Call job details api for each such job
         // Get first 3 jobs without resume
-        // if(jobs.length == 0){
-        //     toast.error('No jobs are selected yet.');
-        //     return;
-        // }
-        // if(!uploadedResume){
-        //     toast.error('No reference resume is uploaded.');
-        //     return;
-        // }
-        //
-        // const jobsToCreateResume = jobs
-        //     .filter(job => !job.isResumeAvailable) // filter jobs without resume
-        //     .slice(0, Math.min(3, jobs.length)); // take first 3
-        //
-        // console.log('Jobs we got for processing:', jobsToCreateResume);
+        if(jobs.length == 0){
+            toast.error('No jobs are selected yet.');
+            return;
+        }
+        if(!uploadedResume){
+            toast.error('No reference resume is uploaded.');
+            return;
+        }
+
+        const jobsToCreateResume = jobs
+            .filter(job => !job.isResumeAvailable) // filter jobs without resume
+            .slice(0, Math.min(1, jobs.length)); // take first 3
+
+        console.log('Jobs we got for processing:', jobsToCreateResume);
+        const resumeData = await pdfToText(uploadedResume);
+        for(let i=0; i<jobsToCreateResume.length; i++){
+            const response = await client?.getPrompt('create-resume', {
+                "ReferenceResume": resumeData,
+                "JobDetails": jobDetailsToString(jobsToCreateResume[i])
+            })
+
+            //console.log('Response for job:', jobsToCreateResume[i].jobTitle, ', response we got:', response);
+            if (response) {
+                const message = response.messages[0].content.text;
+                console.log('Messages we got:', message);
+                const finalMessage = await client?.processQuery(message);
+                console.log('Final message we got:', finalMessage);
+                if(finalMessage){
+                    console.log('Data from final message:', finalMessage['docUrl'])
+                    jobsToCreateResume[i].resumeUrl = finalMessage['docUrl'];
+                }
+            }
+            //await client?.processQuery()
+        }
     }
     useEffect(() => {
         const accessToken = searchParams.get("access_token");
@@ -208,7 +229,7 @@ export const WorkspacePage = () => {
                                         <TableHead>Company</TableHead>
                                         <TableHead>Link</TableHead>
                                         <TableHead>Location</TableHead>
-                                        <TableHead>Resume Available</TableHead>
+                                        <TableHead>Resume URL</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -219,6 +240,7 @@ export const WorkspacePage = () => {
                                             <TableCell>{job.companyName}</TableCell>
                                             <TableCell>{job.jobUrl ?  job.jobUrl.toString():'-'}</TableCell>
                                             <TableCell>{job.location}</TableCell>
+                                            <TableCell>{job.resumeUrl ? job.resumeUrl: '-'}</TableCell>
                                         </TableRow> as ReactNode;
                                     })}
                                 </TableBody>

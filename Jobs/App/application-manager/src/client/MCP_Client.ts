@@ -52,7 +52,16 @@ export class MCPClient {
         }
     }
 
-    async processQuery(query: string, setMessages: (message: IMessage)=>void): Promise<void> {
+    private isValidJson(str: string): boolean {
+        try {
+            const parsed = JSON.parse(str);
+            return typeof parsed === 'object' && parsed !== null;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    async processQuery(query: string): Promise<any> {
         const messages: MessageParam[] = [
             {
                 role: 'user',
@@ -61,33 +70,34 @@ export class MCPClient {
         ];
 
         console.log('Messages:', messages);
-        const body:{ max_tokens: number; messages: MessageParam[]; model: string; tools: Tool[]; prompts: any[] }  = {
+        const body:{ max_tokens: number; messages: MessageParam[]; model: string; tools: Tool[];}  = {
             model: "claude-3-5-sonnet-20241022",
             max_tokens: 1000,
             messages,
-            tools: this.tools,
-            prompts: this.prompts
+            tools: this.tools
         }
         console.log('Body we got for request:', body);
         const response = await this.llm.messages.create(body);
-        await this.recursiveToolCall(response, [], setMessages);
+        return await this.recursiveToolCall(response, messages);
     }
 
     async cleanup() {
+        console.log('Called for closing connections!');
         await this.mcp.close();
     }
 
-    async recursiveToolCall( message: any, messages: MessageParam[], setMessages: (message: IMessage)=>void ): Promise<void>{
+    async recursiveToolCall( message: any, messages: MessageParam[]): Promise<any>{
         for(let content of message.content){
             if(content.type == 'text'){
                 //Push message to the message list
-                const message = {
-                    variant: 'received',
-                    fallBack: 'AI',
-                    message: content.text,
-                    isLoading: false
+                console.log('Message from the LLM:', message);
+                messages.push({
+                    role: 'assistant',
+                    content: JSON.stringify(message)
+                })
+                if(this.isValidJson(content.text)){
+                    return JSON.parse(content.text);
                 }
-                setMessages(message as IMessage)
             }else if('tool_use'){
                 const toolName = content.name;
                 let toolArgs = content.input as { [x: string]: unknown } | undefined;
@@ -102,13 +112,6 @@ export class MCPClient {
 
                 if(toolArgs){
                     //Push the message to the message list -> Making call to the particular tool
-                    const message = {
-                        variant: 'received',
-                        fallBack: 'AI',
-                        message: `[Calling tool ${toolName} ]`,
-                        isLoading: false
-                    }
-                    setMessages(message as IMessage)
                     // After receiving the tool response -> Push the message to the message list
                     const toolsResponse = await this.mcp.callTool({
                         name: toolName,
@@ -128,9 +131,17 @@ export class MCPClient {
                         tools: this.tools
                     }
                     const llmResponse = await this.llm.messages.create(body);
-                    await this.recursiveToolCall(llmResponse, messages, setMessages);
+                    return await this.recursiveToolCall(llmResponse, messages);
                 }
             }
         }
     }
+
+    public async getPrompt(name: string, args: {[key: string]: string}): Promise<any>{
+        return await this.mcp.getPrompt({
+           name: name,
+           arguments: args
+       })
+    }
+
 }
