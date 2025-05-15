@@ -1,9 +1,8 @@
-import {Anthropic, Message} from "@anthropic-ai/sdk";
+import {Anthropic} from "@anthropic-ai/sdk";
 import {Client} from "@modelcontextprotocol/sdk/client/index.js";
-import {WebSocketClientTransport} from "@modelcontextprotocol/sdk/client/websocket.js"
 import {MessageCreateParamsBase, MessageParam, Tool} from "@anthropic-ai/sdk/resources/messages/messages.mjs";
-import {IMessage} from "@/feature/workspace-page/WorkspacePage.tsx";
 import {getItem} from "@/utils/localStorage.ts";
+import {WebSocketClientTransport} from "@/transport/WebSocketClientTransport.ts";
 
 
 const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
@@ -20,6 +19,8 @@ export class MCPClient {
     private prompts: any[] = []
     private accessToken : string | null = null;
 
+    private mcpServerUrl: string = '';
+
     constructor() {
         this.llm = new Anthropic({apiKey: ANTHROPIC_API_KEY, dangerouslyAllowBrowser: true});
         this.mcp = new Client({ name: "mcp-client", version: "1.0.0" }, { capabilities: {} });
@@ -29,26 +30,35 @@ export class MCPClient {
 
     public async connectToServer(url: string) {
         console.log('URL we received for Server:', url);
-        this.transport = new WebSocketClientTransport(new URL(url));
+        this.mcpServerUrl = url;
+        this.transport = new WebSocketClientTransport(new URL(url), this.onCloseForConnection);
+        await this.connect();
+    }
 
-        try {
-            // Await the connection before calling anything else
-            const connectResponse = await this.mcp.connect(this.transport);
-            console.log('Connected to server:', connectResponse);
+    private async connect(){
+        if(this.transport){
+            try {
+                // Await the connection before calling anything else
+                console.log('We are here 2');
+                const connectResponse = await this.mcp.connect(this.transport);
+                console.log('Connected to server:', connectResponse);
 
-            const toolsResult = await this.mcp.listTools();
-            this.tools = toolsResult.tools.map(tool => {
-                return {
-                    name: tool.name,
-                    description: tool.description,
-                    input_schema: tool.inputSchema,
-                };
-            });
-            console.log('Result for Tools:', this.tools);
-            this.prompts = await this.mcp.listPrompts();
-            console.log('Result for prompts:', this.prompts);
-        } catch (error) {
-            console.error('Error while connecting or fetching tools:', error);
+                const toolsResult = await this.mcp.listTools();
+                this.tools = toolsResult.tools.map(tool => {
+                    return {
+                        name: tool.name,
+                        description: tool.description,
+                        input_schema: tool.inputSchema,
+                    };
+                });
+                console.log('Result for Tools:', this.tools);
+                this.prompts = await this.mcp.listPrompts();
+                console.log('Result for prompts:', this.prompts);
+            } catch (error) {
+                console.error('Error while connecting or fetching tools:', error);
+            }
+        }else{
+            console.error('Error while connection, transport is not setup');
         }
     }
 
@@ -98,7 +108,7 @@ export class MCPClient {
                 if(this.isValidJson(content.text)){
                     return JSON.parse(content.text);
                 }
-            }else if('tool_use'){
+            }else if(content.type == 'tool_use'){
                 const toolName = content.name;
                 let toolArgs = content.input as { [x: string]: unknown } | undefined;
                 if (toolArgs && 'accessToken' in toolArgs) {
@@ -144,4 +154,14 @@ export class MCPClient {
        })
     }
 
+    onCloseForConnection = () =>{
+        console.log('On close called for connection.');
+        this.connect().then(
+            response => {
+                console.log('Connected to the server again.');
+            }, error => {
+                console.log('Error while connecting again to server.', error);
+            }
+        );
+    }
 }

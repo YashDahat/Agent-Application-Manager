@@ -12,9 +12,8 @@ import {SidebarInset, SidebarProvider, SidebarTrigger,} from "@/components/ui/si
 import {Button} from "@/components/ui/button.tsx";
 import {ReactNode, useEffect, useState} from "react";
 import {usePersistedState} from "@/hooks/usePersistedState.tsx";
-import {data, useSearchParams} from "react-router-dom";
+import {useSearchParams} from "react-router-dom";
 import {MCPClient} from "@/client/MCP_Client.ts";
-import {IMessage, useMessageState} from "@/hooks/useMessageState.tsx";
 import {Input} from "@/components/ui/input.tsx";
 import {
     Select,
@@ -25,10 +24,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import {Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow,} from "@/components/ui/table"
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from "@/components/ui/table"
 import {getJobListing, JobDetails, jobDetailsToString} from "@/services/JobServices.ts";
-import {FilePlus, HardDriveUpload, Loader, Search} from "lucide-react";
-import {LoadingSpinner} from "@/common-components/aam-loader/Loader.tsx";
+import {FilePlus, HardDriveUpload, Search} from "lucide-react";
 import {PdfUploadDialog} from "@/common-components/aam-file-uploader/PdfUploadDialog.tsx";
 import {toast} from "sonner";
 import {Label} from "@/components/ui/label.tsx";
@@ -37,7 +35,6 @@ import pdfToText from "react-pdftotext";
 
 
 const access_token = 'access_token';
-const refresh_token  = 'refresh_token';
 const SSE_URL = import.meta.env.VITE_SSE_URL;
 
 
@@ -46,10 +43,7 @@ const SSE_URL = import.meta.env.VITE_SSE_URL;
 export const WorkspacePage = () => {
     const [searchParams] = useSearchParams();
     const [accessToken, setAccessToken] = usePersistedState(access_token, '');
-    const [refreshToken, setRefreshToken] = usePersistedState(refresh_token, '');
     const [client, setClient] = useState<MCPClient | null>(null);
-    const [messages, setMessages] = useMessageState([]);
-    const [userMessage, setUserMessage] = useState<string>('');
     const [role, setRole] = useState<string>('');
     const [location, setLocation] = useState<string>('');
     const [datePosted, setDatePosted] = useState<string>('');
@@ -62,38 +56,6 @@ export const WorkspacePage = () => {
         setClient(c);
     };
 
-    async function processQuery(){
-        const message: IMessage = {
-            variant: 'sent',
-            fallBack: 'US',
-            message: String(userMessage)
-        }
-        const aiLoadingMessage: IMessage = {
-            variant: 'received',
-            fallBack: 'AI',
-            message: '',
-            isLoading: true
-        }
-        setMessages(message);
-        setMessages(aiLoadingMessage);
-        setUserMessage('');
-        client?.processQuery(message.message, setMessages).then(
-            response => {
-                console.log('Response from LLM:', response);
-                setMessages(prevState => {
-                    let updatedState = prevState.slice(0, prevState.length - 1);
-                    updatedState.push({
-                        fallBack: 'AI',
-                        variant: 'received',
-                        message: response
-                    });
-                    return updatedState;
-                })
-            }, error => {
-                console.log('Error while implementing response:', error);
-            }
-        )
-    }
 
     const handleJobSearch = async () =>{
         console.log('Job search params:', role, ', location:', location, ', date posted:', datePosted);

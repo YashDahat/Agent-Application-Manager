@@ -1,14 +1,13 @@
-import React from "react";
 import {
     Dialog,
-    DialogTrigger,
     DialogContent,
-    DialogHeader,
-    DialogTitle,
     DialogDescription,
     DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {Button} from "@/components/ui/button";
+import React from "react";
 
 interface IDialogBoxProps {
     isOpen: boolean;
@@ -36,7 +35,8 @@ export function DialogBox(props: IDialogBoxProps) {
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>{props.title}</DialogTitle>
-                    {props.description && <DialogDescription>{props.description}</DialogDescription>}
+                    {props.description ? <DialogDescription>{props.description}</DialogDescription> as React.ReactElement
+                        : <></>}
                 </DialogHeader>
                 <DialogFooter>
                     <Button variant="outline" onClick={handleCancel}>

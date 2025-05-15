@@ -1,16 +1,13 @@
-import { GalleryVerticalEnd } from "lucide-react"
+import {GalleryVerticalEnd} from "lucide-react"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import {cn} from "@/lib/utils"
+import {Button} from "@/components/ui/button"
 import {useNavigate} from "react-router-dom";
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const navigation = useNavigate();
   const authUri = import.meta.env.VITE_AUTH_URI;
   const redirectUri = import.meta.env.VITE_AUTH_REDIRECT_URI;
   console.log('redirect URI:', redirectUri);
