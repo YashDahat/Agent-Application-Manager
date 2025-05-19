@@ -19,7 +19,6 @@ export class MCPClient {
     private prompts: any[] = []
     private accessToken : string | null = null;
 
-    private mcpServerUrl: string = '';
 
     constructor() {
         this.llm = new Anthropic({apiKey: ANTHROPIC_API_KEY, dangerouslyAllowBrowser: true});
@@ -29,8 +28,6 @@ export class MCPClient {
     }
 
     public async connectToServer(url: string) {
-        console.log('URL we received for Server:', url);
-        this.mcpServerUrl = url;
         this.transport = new WebSocketClientTransport(new URL(url), this.onCloseForConnection);
         await this.connect();
     }
@@ -52,7 +49,7 @@ export class MCPClient {
                     };
                 });
                 console.log('Result for Tools:', this.tools);
-                this.prompts = await this.mcp.listPrompts();
+                this.prompts = Object.values(await this.mcp.listPrompts());
                 console.log('Result for prompts:', this.prompts);
             } catch (error) {
                 console.error('Error while connecting or fetching tools:', error);
@@ -156,12 +153,6 @@ export class MCPClient {
 
     onCloseForConnection = () =>{
         console.log('On close called for connection.');
-        this.connect().then(
-            response => {
-                console.log('Connected to the server again.');
-            }, error => {
-                console.log('Error while connecting again to server.', error);
-            }
-        );
+        this.connect();
     }
 }

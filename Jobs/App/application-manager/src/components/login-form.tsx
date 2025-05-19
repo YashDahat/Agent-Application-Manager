@@ -2,7 +2,6 @@ import {GalleryVerticalEnd} from "lucide-react"
 
 import {cn} from "@/lib/utils"
 import {Button} from "@/components/ui/button"
-import {useNavigate} from "react-router-dom";
 
 export function LoginForm({
   className,

@@ -14,13 +14,14 @@ import * as http from "http";
 import {WebSocketServer, WebSocket} from "ws";
 import {WebsocketTransport} from "./transport/Websocket.js";
 
-dotenv.config();
+dotenv.config({path: '.env.production'});
 
+console.log('Client URL:', process.env.CLIENT_URL);
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({server});
 app.use(express.json());
-app.use(cors({origin: 'http://localhost:5173'}));
+app.use(cors({origin: process.env.CLIENT_URL}));
 let transport: SSEServerTransport | null = null;
 let websocketTransport: WebsocketTransport | null = null;
 
@@ -40,10 +41,11 @@ const scopes = [
 
 
 const oauth2Client = new google.auth.OAuth2(
-    '1065879422486-46ismsi231snm30vddvuhj5816lugeed.apps.googleusercontent.com',
-    "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",
-    "http://localhost:3000/oauth2callback"
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI
 )
+
 
 //Tools Listing
 //Get jobs for the query
@@ -358,9 +360,10 @@ app.get('/auth', (req, res) => {
 // Step 2: Handle OAuth2 callback and store token
 app.get('/oauth2callback', async (req, res) => {
     const code = req.query.code as string;
+    console.log('Codes:', code);
     const {tokens} = await oauth2Client.getToken(code);
     console.log("Tokens:", tokens);
-    res.redirect('http://localhost:5173/workspace?access_token=' + tokens.access_token + '&refresh_token=' + tokens.refresh_token);
+    res.redirect(process.env.CLIENT_URL + '/workspace?access_token=' + tokens.access_token + '&refresh_token=' + tokens.refresh_token);
 });
 
 

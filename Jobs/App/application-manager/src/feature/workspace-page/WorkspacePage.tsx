@@ -11,7 +11,6 @@ import {Separator} from "@/components/ui/separator"
 import {SidebarInset, SidebarProvider, SidebarTrigger,} from "@/components/ui/sidebar"
 import {Button} from "@/components/ui/button.tsx";
 import {ReactNode, useEffect, useState} from "react";
-import {usePersistedState} from "@/hooks/usePersistedState.tsx";
 import {useSearchParams} from "react-router-dom";
 import {MCPClient} from "@/client/MCP_Client.ts";
 import {Input} from "@/components/ui/input.tsx";
@@ -32,17 +31,14 @@ import {toast} from "sonner";
 import {Label} from "@/components/ui/label.tsx";
 import {ConfirmCreateResume} from "@/feature/workspace-page/confirm-create-resume-dialog/ConfirmCreateResume.tsx";
 import pdfToText from "react-pdftotext";
+import {setItem} from "@/utils/localStorage.ts";
 
+const access_token_key = 'access_token';
 
-const access_token = 'access_token';
-const SSE_URL = import.meta.env.VITE_SSE_URL;
-
-
-
+const BASE_SERVER = import.meta.env.VITE_BASE_URL;
 
 export const WorkspacePage = () => {
     const [searchParams] = useSearchParams();
-    const [accessToken, setAccessToken] = usePersistedState(access_token, '');
     const [client, setClient] = useState<MCPClient | null>(null);
     const [role, setRole] = useState<string>('');
     const [location, setLocation] = useState<string>('');
@@ -52,7 +48,7 @@ export const WorkspacePage = () => {
     const [isCreateResume, setIsCreateResume] = useState<boolean>(false);
     const init = async () => {
         const c = new MCPClient();
-        await c.connectToServer("http://localhost:3000/mcp/connection");
+        await c.connectToServer(BASE_SERVER+"/mcp/connection");
         setClient(c);
     };
 
@@ -110,8 +106,7 @@ export const WorkspacePage = () => {
     }
     useEffect(() => {
         const accessToken = searchParams.get("access_token");
-        console.log('Access Token:', accessToken);
-        setAccessToken(accessToken);
+        setItem(access_token_key, accessToken);
         init();
     }, []);
 

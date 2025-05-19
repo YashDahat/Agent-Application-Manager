@@ -1,14 +1,14 @@
-import {Transport} from '@modelcontextprotocol/sdk/shared/transport.d.ts';
+import {Transport} from '@modelcontextprotocol/sdk/shared/transport.js';
 import {JSONRPCMessageSchema, JSONRPCMessage} from '@modelcontextprotocol/sdk/types.js'
 const SUBPROTOCOL = "mcp";
 
 export class WebSocketClientTransport implements Transport {
     private readonly url: URL;
-    private socket: WebSocket | null;
+    private socket: WebSocket | null = null;
 
-    private onclose: () => void = () => { console.log('On close was called.'); };
-    private onerror: (error: Error) => void = (error) => { console.log('On error was called:', error); };
-    private onmessage: (message: JSONRPCMessage) => void =  (message) => { console.log('On message was called:', message); };
+    onclose: () => void = () => { console.log('On close was called.'); };
+    onerror: (error: Error) => void = (error) => { console.log('On error was called:', error); };
+    onmessage: (message: JSONRPCMessage) => void =  (message) => { console.log('On message was called:', message); };
     private bufferOnClose: () => void = () => { console.log('On close was called.'); };
 
     constructor(url: URL, onclose: ()=>void) {
@@ -35,8 +35,8 @@ export class WebSocketClientTransport implements Transport {
                 const error = "error" in event
                     ? event.error
                     : new Error(`WebSocket error: ${JSON.stringify(event)}`);
-                this.onerror?.(error);
-                reject(error);
+                this.onerror?.(error as Error);
+                reject(error as Error);
             };
             this.socket!.onmessage = (event)=>{
                 var _a, _b;
@@ -44,7 +44,7 @@ export class WebSocketClientTransport implements Transport {
                 try{
                     message = JSONRPCMessageSchema.parse(JSON.parse(event.data));
                 }catch (error){
-                    (_a = this.onerror) === null || _a === void 0 ? void 0 : _a.call(this, error);
+                    (_a = this.onerror) === null || _a === void 0 ? void 0 : _a.call(this, error as Error);
                     return;
                 }
                 (_b = this.onmessage) === null || _b === void 0 ? void 0 : _b.call(this, message);
@@ -55,11 +55,8 @@ export class WebSocketClientTransport implements Transport {
         console.log('On close contains:', this.onclose);
     }
 
-    public async send(message: JSONRPCMessage){
+    public async send(message: JSONRPCMessage): Promise<void>{
         console.log('Sending message to the server!!!:', message);
-        //Check for the connection
-        //If connection is still on send the message
-        //else throw error
         return new Promise((resolve, reject) => {
             var _a;
             if(!this.socket){
