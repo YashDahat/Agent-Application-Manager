@@ -10,7 +10,7 @@ import {
 import {Separator} from "@/components/ui/separator"
 import {SidebarInset, SidebarProvider, SidebarTrigger,} from "@/components/ui/sidebar"
 import {Button} from "@/components/ui/button.tsx";
-import {ReactNode, useEffect, useState} from "react";
+import {useEffect, useState} from "react";
 import {useSearchParams} from "react-router-dom";
 import {MCPClient} from "@/client/MCP_Client.ts";
 import {Input} from "@/components/ui/input.tsx";
@@ -23,15 +23,17 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from "@/components/ui/table"
-import {getJobListing, JobDetails, jobDetailsToString} from "@/services/JobServices.ts";
-import {FilePlus, HardDriveUpload, Search} from "lucide-react";
+import {getJobDetails, getJobListing, JobDetails, jobDetailsToString} from "@/services/JobServices.ts";
+import {FilePlus, HardDriveUpload, Loader2, Search} from "lucide-react";
 import {PdfUploadDialog} from "@/common-components/aam-file-uploader/PdfUploadDialog.tsx";
 import {toast} from "sonner";
 import {Label} from "@/components/ui/label.tsx";
 import {ConfirmCreateResume} from "@/feature/workspace-page/confirm-create-resume-dialog/ConfirmCreateResume.tsx";
 import pdfToText from "react-pdftotext";
 import {setItem} from "@/utils/localStorage.ts";
+import {AgGrid} from "@/common-components/aam-ag-grid/AgGrid.tsx";
+import {IColumnProps} from "@/common-components/aam-ag-grid/table-props/TableProps.ts";
+import {ColumnTypes} from "@/common-components/aam-ag-grid/formatter/Formatter.ts";
 
 const access_token_key = 'access_token';
 
@@ -46,6 +48,27 @@ export const WorkspacePage = () => {
     const [jobs, setJobs] = useState<JobDetails[]>([]);
     const [uploadedResume, setUploadedResume] = useState<File|null>(null);
     const [isCreateResume, setIsCreateResume] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+
+    const columns: IColumnProps[] = [
+        {key: 'jobId', label: 'Id'},
+        {key: 'jobTitle', label: 'Title'},
+        {key: 'companyName', label: 'Company'},
+        {key: 'location', label: 'Location'},
+        {key: 'jobUrl', label: 'Job Link', selectedCellEventHandler: (data)=>{
+            console.log('Data we got for the column:', data);
+            window.open(new URL(data as string));
+        }},
+        {key: 'resumeUrl', label: 'Resume Link', selectedCellEventHandler: (data)=>{
+            console.log('Data we got for the column:', data);
+            if(!data || (data as string) == ''){
+                toast.error('Resume has not been created yet.');
+                return;
+            }
+            window.open(new URL(data as string));
+        }},
+    ]
+
     const init = async () => {
         const c = new MCPClient();
         await c.connectToServer(BASE_SERVER+"/mcp/connection");
@@ -55,12 +78,15 @@ export const WorkspacePage = () => {
 
     const handleJobSearch = async () =>{
         console.log('Job search params:', role, ', location:', location, ', date posted:', datePosted);
+        setIsLoading(true);
         getJobListing(role, location, datePosted).then(
             response => {
                 console.log('Response we got for jobs listing:', response);
                 setJobs(response);
+                setIsLoading(false);
             }, error => {
                 console.log('Error while fetching the data for jobs.', error);
+                setIsLoading(false);
             }
         )
     }
@@ -79,15 +105,18 @@ export const WorkspacePage = () => {
         }
 
         const jobsToCreateResume = jobs
-            .filter(job => !job.isResumeAvailable) // filter jobs without resume
+            .filter(job => !job.resumeUrl || job.resumeUrl == '') // filter jobs without resume
             .slice(0, Math.min(1, jobs.length)); // take first 3
 
+        setIsLoading(true);
         console.log('Jobs we got for processing:', jobsToCreateResume);
         const resumeData = await pdfToText(uploadedResume);
         for(let i=0; i<jobsToCreateResume.length; i++){
+            const updatedJobDetails : JobDetails = await getJobDetails(jobsToCreateResume[i].jobId);
+            console.log('Updated job details:', updatedJobDetails);
             const response = await client?.getPrompt('create-resume', {
                 "ReferenceResume": resumeData,
-                "JobDetails": jobDetailsToString(jobsToCreateResume[i])
+                "JobDetails": jobDetailsToString(updatedJobDetails)
             })
 
             //console.log('Response for job:', jobsToCreateResume[i].jobTitle, ', response we got:', response);
@@ -97,12 +126,14 @@ export const WorkspacePage = () => {
                 const finalMessage = await client?.processQuery(message);
                 console.log('Final message we got:', finalMessage);
                 if(finalMessage){
-                    console.log('Data from final message:', finalMessage['docUrl'])
+                    console.log('Data from final message:', finalMessage['docUrl']);
+                    console.log('Data from final message:', finalMessage['docUrl']);
                     jobsToCreateResume[i].resumeUrl = finalMessage['docUrl'];
+                    jobsToCreateResume[i].isResumeAvailable = true;
                 }
             }
-            //await client?.processQuery()
         }
+        setIsLoading(false);
     }
     useEffect(() => {
         const accessToken = searchParams.get("access_token");
@@ -155,10 +186,10 @@ export const WorkspacePage = () => {
                                     <SelectContent>
                                         <SelectGroup>
                                             <SelectLabel>Date Posted</SelectLabel>
-                                            <SelectItem value="anytime">Anytime</SelectItem>
-                                            <SelectItem value="past 24 hours">Past 24 hours</SelectItem>
-                                            <SelectItem value="past week">Past week</SelectItem>
-                                            <SelectItem value="past month">Past month</SelectItem>
+                                            <SelectItem value="anyTime">Anytime</SelectItem>
+                                            <SelectItem value="past24Hours">Past 24 hours</SelectItem>
+                                            <SelectItem value="pastWeek">Past week</SelectItem>
+                                            <SelectItem value="pastMonth">Past month</SelectItem>
                                         </SelectGroup>
                                     </SelectContent>
                                 </Select>
@@ -177,31 +208,11 @@ export const WorkspacePage = () => {
                                 {uploadedResume ? uploadedResume.name : ''}
                             </Label>
                         </div>
-                        <div className={'w-[100%] h-[100vh]'}>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Job Id</TableHead>
-                                        <TableHead>Job Title</TableHead>
-                                        <TableHead>Company</TableHead>
-                                        <TableHead>Link</TableHead>
-                                        <TableHead>Location</TableHead>
-                                        <TableHead>Resume URL</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {jobs.map(job => {
-                                        return <TableRow>
-                                            <TableCell>{job.jobId}</TableCell>
-                                            <TableCell>{job.jobTitle}</TableCell>
-                                            <TableCell>{job.companyName}</TableCell>
-                                            <TableCell>{job.jobUrl ?  job.jobUrl.toString():'-'}</TableCell>
-                                            <TableCell>{job.location}</TableCell>
-                                            <TableCell>{job.resumeUrl ? job.resumeUrl: '-'}</TableCell>
-                                        </TableRow> as ReactNode;
-                                    })}
-                                </TableBody>
-                            </Table>
+                        <div className={'w-[100%] h-[80vh]'}>
+                            {isLoading? <div className="flex items-center justify-center h-screen">
+                                    <Loader2 className="animate-spin"/>
+                                </div>
+                                : <AgGrid columns={columns} items={jobs}/>}
                         </div>
                     </div>
                 </div>

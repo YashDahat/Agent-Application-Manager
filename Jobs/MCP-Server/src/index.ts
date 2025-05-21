@@ -14,7 +14,7 @@ import * as http from "http";
 import {WebSocketServer, WebSocket} from "ws";
 import {WebsocketTransport} from "./transport/Websocket.js";
 
-dotenv.config({path: '.env.production'});
+dotenv.config();
 
 console.log('Client URL:', process.env.CLIENT_URL);
 const app = express();

@@ -31,7 +31,7 @@ export const getJobListing = async (role: string, location: string, datePosted: 
 }
 
 export const getJobDetails = async (id: string) => {
-    const url = baseURL + '/get_job_details?jobId' + id;
+    const url = baseURL + '/get_job_details?jobId=' + id;
     const options = {
         method: 'GET'
     }

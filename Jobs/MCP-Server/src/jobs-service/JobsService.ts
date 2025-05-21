@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 
-dotenv.config({path: '.env.production'});
+dotenv.config();
 
 const baseUrl = process.env.JOBS_BASE_API_URL;
 const apiKey = process.env.JOBS_API_KEY_PREM;
