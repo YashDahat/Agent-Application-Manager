@@ -24,7 +24,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import {getJobDetails, getJobListing, JobDetails, jobDetailsToString} from "@/services/JobServices.ts";
-import {FilePlus, HardDriveUpload, Loader2, Search} from "lucide-react";
+import {FilePlus, FilePlus2, HardDriveUpload, Loader2, Search} from "lucide-react";
 import {PdfUploadDialog} from "@/common-components/aam-file-uploader/PdfUploadDialog.tsx";
 import {toast} from "sonner";
 import {Label} from "@/components/ui/label.tsx";
@@ -32,8 +32,7 @@ import {ConfirmCreateResume} from "@/feature/workspace-page/confirm-create-resum
 import pdfToText from "react-pdftotext";
 import {setItem} from "@/utils/localStorage.ts";
 import {AgGrid} from "@/common-components/aam-ag-grid/AgGrid.tsx";
-import {IColumnProps} from "@/common-components/aam-ag-grid/table-props/TableProps.ts";
-import {ColumnTypes} from "@/common-components/aam-ag-grid/formatter/Formatter.ts";
+import {IActionProps, IColumnProps, ITableProps} from "@/common-components/aam-ag-grid/table-props/TableProps.ts";
 
 const access_token_key = 'access_token';
 
@@ -57,16 +56,45 @@ export const WorkspacePage = () => {
         {key: 'location', label: 'Location'},
         {key: 'jobUrl', label: 'Job Link', selectedCellEventHandler: (data)=>{
             console.log('Data we got for the column:', data);
-            window.open(new URL(data as string));
+            const jobDetails = data as JobDetails;
+            window.open(jobDetails.jobUrl);
         }},
         {key: 'resumeUrl', label: 'Resume Link', selectedCellEventHandler: (data)=>{
-            console.log('Data we got for the column:', data);
-            if(!data || (data as string) == ''){
+            const jobDetails = data as JobDetails;
+            console.log('Data we got for the column:', jobDetails);
+            if(!jobDetails.resumeUrl || jobDetails.resumeUrl == ''){
                 toast.error('Resume has not been created yet.');
                 return;
             }
-            window.open(new URL(data as string));
+            window.open(new URL(jobDetails.resumeUrl));
         }},
+        // { key: 'createResume', label: 'Create Resume', design: 'ghost', icon: <FilePlus2/>, selectedCellEventHandler: async (data) => {
+        //     if(!uploadedResume){
+        //         toast.error('Resume has not been uploaded yet.');
+        //         return;
+        //     }
+        //     console.log('Jobs Details:', data);
+        //     const updateJobs = jobs.filter((job) => job.jobId == data.jobId);
+        //     await createResume(updateJobs);
+        // }}
+    ]
+
+    const actions: IActionProps[] = [
+        {
+            name: 'Build Resume',
+            icon: <FilePlus2/>,
+            actionEventHandler: async (data) => {
+                if(!uploadedResume){
+                    toast.error('Resume has not been uploaded yet.');
+                    return;
+                }
+                const jobDetails = data as JobDetails;
+                console.log('Jobs Details:', jobDetails);
+                const updateJobs = jobs.filter((job) => job.jobId == jobDetails.jobId);
+                await createResume(updateJobs);
+            },
+            design: 'ghost'
+        }
     ]
 
     const init = async () => {
@@ -75,6 +103,35 @@ export const WorkspacePage = () => {
         setClient(c);
     };
 
+    const createResume = async (jobsToCreateResume: JobDetails[]) => {
+        if(!uploadedResume) return;
+        setIsLoading(true);
+        console.log('Jobs we got for processing:', jobsToCreateResume);
+        const resumeData = await pdfToText(uploadedResume);
+        for(let i=0; i<jobsToCreateResume.length; i++){
+            const updatedJobDetails : JobDetails = await getJobDetails(jobsToCreateResume[i].jobId);
+            console.log('Updated job details:', updatedJobDetails);
+            const response = await client?.getPrompt('create-resume', {
+                "ReferenceResume": resumeData,
+                "JobDetails": jobDetailsToString(updatedJobDetails)
+            })
+
+            //console.log('Response for job:', jobsToCreateResume[i].jobTitle, ', response we got:', response);
+            if (response) {
+                const message = response.messages[0].content.text;
+                console.log('Messages we got:', message);
+                const finalMessage = await client?.processQuery(message);
+                console.log('Final message we got:', finalMessage);
+                if(finalMessage){
+                    console.log('Data from final message:', finalMessage['docUrl']);
+                    console.log('Data from final message:', finalMessage['docUrl']);
+                    jobsToCreateResume[i].resumeUrl = finalMessage['docUrl'];
+                    jobsToCreateResume[i].isResumeAvailable = true;
+                }
+            }
+        }
+        setIsLoading(false);
+    }
 
     const handleJobSearch = async () =>{
         console.log('Job search params:', role, ', location:', location, ', date posted:', datePosted);
@@ -108,32 +165,7 @@ export const WorkspacePage = () => {
             .filter(job => !job.resumeUrl || job.resumeUrl == '') // filter jobs without resume
             .slice(0, Math.min(1, jobs.length)); // take first 3
 
-        setIsLoading(true);
-        console.log('Jobs we got for processing:', jobsToCreateResume);
-        const resumeData = await pdfToText(uploadedResume);
-        for(let i=0; i<jobsToCreateResume.length; i++){
-            const updatedJobDetails : JobDetails = await getJobDetails(jobsToCreateResume[i].jobId);
-            console.log('Updated job details:', updatedJobDetails);
-            const response = await client?.getPrompt('create-resume', {
-                "ReferenceResume": resumeData,
-                "JobDetails": jobDetailsToString(updatedJobDetails)
-            })
-
-            //console.log('Response for job:', jobsToCreateResume[i].jobTitle, ', response we got:', response);
-            if (response) {
-                const message = response.messages[0].content.text;
-                console.log('Messages we got:', message);
-                const finalMessage = await client?.processQuery(message);
-                console.log('Final message we got:', finalMessage);
-                if(finalMessage){
-                    console.log('Data from final message:', finalMessage['docUrl']);
-                    console.log('Data from final message:', finalMessage['docUrl']);
-                    jobsToCreateResume[i].resumeUrl = finalMessage['docUrl'];
-                    jobsToCreateResume[i].isResumeAvailable = true;
-                }
-            }
-        }
-        setIsLoading(false);
+        await createResume(jobsToCreateResume);
     }
     useEffect(() => {
         const accessToken = searchParams.get("access_token");
@@ -141,6 +173,12 @@ export const WorkspacePage = () => {
         init();
     }, []);
 
+    const tableProps: ITableProps = {
+        columns: columns,
+        items: jobs,
+        isActionsEnabled: true,
+        actions: actions
+    }
 
     return (
         <SidebarProvider>
@@ -212,7 +250,7 @@ export const WorkspacePage = () => {
                             {isLoading? <div className="flex items-center justify-center h-screen">
                                     <Loader2 className="animate-spin"/>
                                 </div>
-                                : <AgGrid columns={columns} items={jobs}/>}
+                                : <AgGrid {...tableProps}/>}
                         </div>
                     </div>
                 </div>
