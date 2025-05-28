@@ -2,11 +2,11 @@ import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js";
 import {SSEServerTransport} from "@modelcontextprotocol/sdk/server/sse.js";
 import {z} from "zod";
 import express from "express";
-import {getJobDetails, getJobsList, getJobsListV2} from "./jobs-service/JobsService.js";
+import {getJobDetails, getJobsList, getJobsListV2} from "./services/jobs-service/JobsService.js";
 import {
     appendGoogleSheetRows, createGoogleDocFromTextAPI,
     createGoogleSheet
-} from "./google-services/GoogleServices.js";
+} from "./services/google-services/GoogleServices.js";
 import dotenv from 'dotenv';
 import {google} from "googleapis";
 import cors from 'cors';
@@ -14,7 +14,7 @@ import * as http from "http";
 import {WebSocketServer, WebSocket} from "ws";
 import {WebsocketTransport} from "./transport/Websocket.js";
 
-dotenv.config();
+dotenv.config({path: './../../.env.production'});
 
 console.log('Client URL:', process.env.CLIENT_URL);
 const app = express();
