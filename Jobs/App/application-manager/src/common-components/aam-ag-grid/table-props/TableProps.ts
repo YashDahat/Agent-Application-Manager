@@ -1,5 +1,11 @@
 import {ColumnTypes} from "@/common-components/aam-ag-grid/formatter/Formatter.ts";
-
+export interface IActionProps{
+    name: string;
+    icon: any;
+    actionEventHandler: (data: unknown)=>void;
+    isDisabled?: boolean;
+    design?: "link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined
+}
 export interface IColumnProps{
     key: string;
     label: string;
@@ -7,10 +13,11 @@ export interface IColumnProps{
     columnType?: ColumnTypes;
 }
 export interface IItemProps{
-    id?: number;
-    [key: string]: unknown;
+    [key: string]: any;
 }
 export interface ITableProps{
     columns: IColumnProps[];
     items: IItemProps[];
+    isActionsEnabled?: boolean;
+    actions?: IActionProps[];
 }
