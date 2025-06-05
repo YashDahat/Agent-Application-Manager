@@ -249,8 +249,11 @@ Data should be appended in the order and format expected by the sheet (e.g., Job
                         You are a helpful AI assistant.
                         
                         Here is a reference resume (in base64 or a downloadable URL) and the job details. Please:
-                        
                         1. Tailor the resume for the job.
+                            a. Extract all relevant skills, experiences, education, projects and co-curricular activities from the resume according to job description.
+                            b. Extract all keywords from the job description.
+                            c. Fit the keywords into experiences, projects and co-curricular activities.
+                            d. Create a final resume based on this.s 
                         2. Save it as a PDF.
                         3. Use the "uploadToGoogleDocs" tool to upload the file.
                         4. Share the Google Docs URL in your response.
