@@ -272,6 +272,53 @@ Data should be appended in the order and format expected by the sheet (e.g., Job
                 };
             }
         );
+        this.mcpServer.prompt(
+            'create-referral-message',
+            'Generates a personalized referral message tailored to a job, using the user’s resume.',
+            {
+                ReferenceResume: z.string().describe('Base64 or URL of the reference resume file uploaded by the user'),
+                JobDetails: z.string().describe('JSON stringified job details for resume tailoring'),
+            },
+            async ({ ReferenceResume, JobDetails }) => {
+                return {
+                    description: 'Prompt to generate tailored referral message for job',
+                    messages: [
+                        {
+                            role: 'user',
+                            content: {
+                                type: 'text',
+                                text: `
+                                You are a helpful AI assistant tasked with writing personalized referral messages for job applications.
+                                
+                                ### Objective:
+                                Craft a concise, friendly, and tailored message that a job seeker can send to a potential referrer.
+                                
+                                ### Guidelines:
+                                1. Start the message with "Hi" and end it with "Thanks and regards".
+                                2. Highlight key skills and experiences (if you find any, we want to keep message short and simple) from the resume that align with the job.
+                                3. Keep the tone professional and easy to read in one go. Keep the message short.
+                                4. Include job url in this message. Include space to add resume link (Compulsory).
+                                5. If job is not suitable for our user, create message but mention that is not suitable for the user.
+                                
+                                
+                                ## Reference resume: ${ReferenceResume}
+                                ## Job details: ${JobDetails}
+                                
+                                Return only a JSON object in the following format:
+                                
+                                {
+                                  "final": true,
+                                  "message": "Your generated referral message here"
+                                }
+                                
+                                Do not include explanations, markdown formatting, or any other text outside the JSON object.
+                                `.trim()
+                            }
+                        }
+                    ]
+                };
+            }
+        );
     }
 
     public getMcpServer(): McpServer {

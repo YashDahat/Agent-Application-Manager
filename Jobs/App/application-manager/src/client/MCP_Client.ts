@@ -24,7 +24,6 @@ export class MCPClient {
         this.llm = new Anthropic({apiKey: ANTHROPIC_API_KEY, dangerouslyAllowBrowser: true});
         this.mcp = new Client({ name: "mcp-client", version: "1.0.0" }, { capabilities: {} });
         this.accessToken = getItem('access_token');
-        console.log('Access Token received:', this.accessToken);
     }
 
     public async connectToServer(url: string) {
@@ -36,10 +35,7 @@ export class MCPClient {
         if(this.transport){
             try {
                 // Await the connection before calling anything else
-                console.log('We are here 2');
-                const connectResponse = await this.mcp.connect(this.transport);
-                console.log('Connected to server:', connectResponse);
-
+                await this.mcp.connect(this.transport);
                 const toolsResult = await this.mcp.listTools();
                 this.tools = toolsResult.tools.map(tool => {
                     return {
@@ -103,7 +99,11 @@ export class MCPClient {
                     content: JSON.stringify(message)
                 })
                 if(this.isValidJson(content.text)){
-                    return JSON.parse(content.text);
+                    console.log('It is a valid json.')
+                    const jsonMessage: {[key: string]: unknown} = JSON.parse(content.text);
+                    if(jsonMessage.final){
+                        return jsonMessage;
+                    }
                 }
             }else if(content.type == 'tool_use'){
                 const toolName = content.name;
