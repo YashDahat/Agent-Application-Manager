@@ -13,3 +13,6 @@ Jobs/MCP-Server/build
 Jobs/App/application-manager/.env
 Jobs/MCP-Client/env
 Jobs/MCP-Server/env
+
+#Ignoring environment files
+.env
