@@ -2,11 +2,13 @@ import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from "@/
 import {Button} from "@/components/ui/button.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {Textarea} from "@/components/ui/textarea.tsx";
+import { Loader2 } from "lucide-react";
 
 export interface IReferralCreatingProp {
     message: string;
-    isOpen: boolean
-    onClose: ()=>void
+    isOpen: boolean;
+    onClose: ()=>void;
+    isLoading?: boolean;
 }
 export const ReferralCreatingDialog = (props: IReferralCreatingProp) => {
     return <Dialog open={props.isOpen} onOpenChange={()=>{props.onClose()}}>
@@ -20,7 +22,9 @@ export const ReferralCreatingDialog = (props: IReferralCreatingProp) => {
                 {/*</div>*/}
                 <div className={'flex flex-col h-full w-full gap-1'}>
                     <Label>Message</Label>
-                    <Textarea className={'h-full'} rows={1000} value={props.message}></Textarea>
+                    {props.isLoading ? <div className="flex items-center justify-center h-screen">
+                        <Loader2 className="animate-spin"/>
+                    </div>: <Textarea className={'h-full'} rows={1000} value={props.message}></Textarea>}
                 </div>
             </div>
             <DialogFooter>

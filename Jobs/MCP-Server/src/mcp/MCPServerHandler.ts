@@ -298,7 +298,8 @@ Data should be appended in the order and format expected by the sheet (e.g., Job
                                 2. Highlight key skills and experiences (if you find any, we want to keep message short and simple) from the resume that align with the job.
                                 3. Keep the tone professional and easy to read in one go. Keep the message short.
                                 4. Include job url in this message. Include space to add resume link (Compulsory).
-                                5. If job is not suitable for our user, create message but mention that is not suitable for the user.
+                                5. Add a warning for the user if the job description does not match with the resume before you create the actual message. 
+                                6. In the message don't mention anything regarding mismatch.
                                 
                                 
                                 ## Reference resume: ${ReferenceResume}

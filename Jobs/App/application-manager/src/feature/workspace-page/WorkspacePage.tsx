@@ -50,6 +50,7 @@ export const WorkspacePage = () => {
     const [isCreateResume, setIsCreateResume] = useState<boolean>(false);
     const [isCreateReferral, setIsCreateReferral] = useState<boolean>(false);
     const [referralMessage, setReferralMessage] = useState<string>('');
+    const [isReferralMessageLoading, setIsReferralmessageLoading] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
     const columns: IColumnProps[] = [
@@ -162,14 +163,17 @@ export const WorkspacePage = () => {
             console.log('Generated Prompt for referral:', response);
             if(response){
                 const generatedPrompt = response.messages[0].content.text;
+                setIsReferralmessageLoading(true);
                 client?.processQuery(generatedPrompt).then(
                     response => {
                         console.log('Final response : ', response);
                         const referralMessage = response.message as string;
                         console.log('Referral Message:', referralMessage);
                         setReferralMessage(referralMessage);
+                        setIsReferralmessageLoading(false);
                     }, error => {
                         console.log('Error while creating referral message:', error);
+                        setIsReferralmessageLoading(false);
                     }
                 )
             }
@@ -302,7 +306,11 @@ export const WorkspacePage = () => {
                                          setIsCreateResume(false)
                                      }}
                                      handleConfirmation={handleCreateResume}/>
-                <ReferralCreatingDialog message={referralMessage} isOpen={isCreateReferral} onClose={()=>{setIsCreateReferral(false)}}/>
+                <ReferralCreatingDialog message={referralMessage} 
+                isOpen={isCreateReferral} 
+                onClose={()=>{setIsCreateReferral(false)}}
+                isLoading={isReferralMessageLoading}
+                />
             </SidebarInset>
         </SidebarProvider>
     )

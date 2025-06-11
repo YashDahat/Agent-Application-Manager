@@ -3,6 +3,7 @@ import {Client} from "@modelcontextprotocol/sdk/client/index.js";
 import {MessageCreateParamsBase, MessageParam, Tool} from "@anthropic-ai/sdk/resources/messages/messages.mjs";
 import {getItem} from "@/utils/localStorage.ts";
 import {WebSocketClientTransport} from "@/transport/WebSocketClientTransport.ts";
+import { json } from "stream/consumers";
 
 
 const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
@@ -100,10 +101,7 @@ export class MCPClient {
                 })
                 if(this.isValidJson(content.text)){
                     console.log('It is a valid json.')
-                    const jsonMessage: {[key: string]: unknown} = JSON.parse(content.text);
-                    if(jsonMessage.final){
-                        return jsonMessage;
-                    }
+                    return JSON.parse(content.text);
                 }
             }else if(content.type == 'tool_use'){
                 const toolName = content.name;
