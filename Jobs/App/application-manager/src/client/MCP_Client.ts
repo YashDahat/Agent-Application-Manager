@@ -3,7 +3,6 @@ import {Client} from "@modelcontextprotocol/sdk/client/index.js";
 import {MessageCreateParamsBase, MessageParam, Tool} from "@anthropic-ai/sdk/resources/messages/messages.mjs";
 import {getItem} from "@/utils/localStorage.ts";
 import {WebSocketClientTransport} from "@/transport/WebSocketClientTransport.ts";
-import { json } from "stream/consumers";
 
 
 const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
