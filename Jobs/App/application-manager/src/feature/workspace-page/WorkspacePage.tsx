@@ -24,7 +24,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import {getJobDetails, getJobListing, JobDetails, jobDetailsToString} from "@/services/JobServices.ts";
-import {FilePlus, FilePlus2, HardDriveUpload, Loader2, Search} from "lucide-react";
+import {FilePlus, FilePlus2, HardDriveUpload, Loader2, Search, Send} from "lucide-react";
 import {PdfUploadDialog} from "@/common-components/aam-file-uploader/PdfUploadDialog.tsx";
 import {toast} from "sonner";
 import {Label} from "@/components/ui/label.tsx";
@@ -33,6 +33,7 @@ import pdfToText from "react-pdftotext";
 import {setItem} from "@/utils/localStorage.ts";
 import {AgGrid} from "@/common-components/aam-ag-grid/AgGrid.tsx";
 import {IActionProps, IColumnProps, ITableProps} from "@/common-components/aam-ag-grid/table-props/TableProps.ts";
+import {ReferralCreatingDialog} from "@/feature/workspace-page/referral-creating-dialog/ReferralCreatingDialog.tsx";
 
 const access_token_key = 'access_token';
 
@@ -47,6 +48,9 @@ export const WorkspacePage = () => {
     const [jobs, setJobs] = useState<JobDetails[]>([]);
     const [uploadedResume, setUploadedResume] = useState<File|null>(null);
     const [isCreateResume, setIsCreateResume] = useState<boolean>(false);
+    const [isCreateReferral, setIsCreateReferral] = useState<boolean>(false);
+    const [referralMessage, setReferralMessage] = useState<string>('');
+    const [isReferralMessageLoading, setIsReferralmessageLoading] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
     const columns: IColumnProps[] = [
@@ -55,13 +59,11 @@ export const WorkspacePage = () => {
         {key: 'companyName', label: 'Company'},
         {key: 'location', label: 'Location'},
         {key: 'jobUrl', label: 'Job Link', selectedCellEventHandler: (data)=>{
-            console.log('Data we got for the column:', data);
             const jobDetails = data as JobDetails;
             window.open(jobDetails.jobUrl);
         }},
         {key: 'resumeUrl', label: 'Resume Link', selectedCellEventHandler: (data)=>{
             const jobDetails = data as JobDetails;
-            console.log('Data we got for the column:', jobDetails);
             if(!jobDetails.resumeUrl || jobDetails.resumeUrl == ''){
                 toast.error('Resume has not been created yet.');
                 return;
@@ -89,9 +91,23 @@ export const WorkspacePage = () => {
                     return;
                 }
                 const jobDetails = data as JobDetails;
-                console.log('Jobs Details:', jobDetails);
                 const updateJobs = jobs.filter((job) => job.jobId == jobDetails.jobId);
                 await createResume(updateJobs);
+            },
+            design: 'ghost'
+        },
+        {
+            name: 'Referral Message',
+            icon: <Send/>,
+            actionEventHandler: async (data) => {
+                if(!uploadedResume){
+                    toast.error('Resume has not been uploaded yet.');
+                    return;
+                }
+                const jobDetails = data as JobDetails;
+                const updateJobs = jobs.filter((job) => job.jobId == jobDetails.jobId);
+                await createReferralMessage(updateJobs);
+                setIsCreateReferral(true);
             },
             design: 'ghost'
         }
@@ -131,6 +147,37 @@ export const WorkspacePage = () => {
             }
         }
         setIsLoading(false);
+    }
+
+    const createReferralMessage = async (jobDetails: JobDetails[]) => {
+        console.log('Job Details we received:', jobDetails);
+        const resumeData = await pdfToText(uploadedResume!);
+        for(let i=0; i<jobDetails.length; i++){
+            console.log('Job currently we are on:', jobDetails[i]);
+            const updatedJobDetails = await getJobDetails(jobDetails[i].jobId);
+            const response = await client?.getPrompt('create-referral-message',
+            {
+                "ReferenceResume": resumeData,
+                "JobDetails": jobDetailsToString(updatedJobDetails)
+            });
+            console.log('Generated Prompt for referral:', response);
+            if(response){
+                const generatedPrompt = response.messages[0].content.text;
+                setIsReferralmessageLoading(true);
+                client?.processQuery(generatedPrompt).then(
+                    response => {
+                        console.log('Final response : ', response);
+                        const referralMessage = response.message as string;
+                        console.log('Referral Message:', referralMessage);
+                        setReferralMessage(referralMessage);
+                        setIsReferralmessageLoading(false);
+                    }, error => {
+                        console.log('Error while creating referral message:', error);
+                        setIsReferralmessageLoading(false);
+                    }
+                )
+            }
+        }
     }
 
     const handleJobSearch = async () =>{
@@ -259,6 +306,11 @@ export const WorkspacePage = () => {
                                          setIsCreateResume(false)
                                      }}
                                      handleConfirmation={handleCreateResume}/>
+                <ReferralCreatingDialog message={referralMessage} 
+                isOpen={isCreateReferral} 
+                onClose={()=>{setIsCreateReferral(false)}}
+                isLoading={isReferralMessageLoading}
+                />
             </SidebarInset>
         </SidebarProvider>
     )

@@ -7,6 +7,7 @@ import {ClientSideRowModelModule} from "@ag-grid-community/client-side-row-model
 import {themeQuartz} from "@ag-grid-community/theming";
 import {AgGridReact} from "@ag-grid-community/react";
 import {Button} from "@/components/ui/button.tsx";
+import {Tooltip, TooltipTrigger, TooltipContent} from "@/components/ui/tooltip.tsx";
 
 
 ModuleRegistry.registerModules([ClientSideRowModelModule]);
@@ -38,7 +39,6 @@ export const AgGrid = (tableProps: ITableProps) => {
             headerName: column.label,
             flex: 1,
             cellRenderer: column.selectedCellEventHandler ? (params: ICellRendererParams) => {
-                console.log('Params value:', params.value);
                 return (params.value != undefined) ? <Button variant={'link'} onClick={() => {
                     column.selectedCellEventHandler!(params.data);
                 }} className={'text-blue-600 hover:underline cursor-pointer underline-offset-4'}>{column.label}
@@ -51,18 +51,23 @@ export const AgGrid = (tableProps: ITableProps) => {
                 headerName: 'Actions',
                 flex: 1,
                 cellRenderer: (params: ICellRendererParams) => {
-                    return <div className={'flex flex-row gap-1'}>
+                    return <div className={'flex flex-row'}>
                         {
                             tableProps.actions?.map(action => {
-                                return <Button
-                                    variant={action.design}
-                                    className="hover:underline cursor-pointer underline-offset-4 text-purple-600"
-                                    onClick={() => action.actionEventHandler(params.data)}
-                                >
-                                    {action.icon}
-                                    {action.name}
-                                </Button>
-
+                                return <Tooltip>
+                                    <TooltipTrigger>
+                                        <Button
+                                            variant={action.design}
+                                            className="hover:underline cursor-pointer underline-offset-4 text-purple-600"
+                                            onClick={() => action.actionEventHandler(params.data)}
+                                        >
+                                            {action.icon}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>{action.name}</p>
+                                    </TooltipContent>
+                                </Tooltip>
                             })
                         }
                     </div>
