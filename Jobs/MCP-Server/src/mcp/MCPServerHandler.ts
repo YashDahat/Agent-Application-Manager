@@ -316,6 +316,7 @@ Data should be appended in the order and format expected by the sheet (e.g., Job
                                 }
                                 
                                 Do not include explanations, markdown formatting, or any other text outside the JSON object.
+                                Create a single json object and check if the formatted message is a valid json string.
                                 `.trim()
                             }
                         }

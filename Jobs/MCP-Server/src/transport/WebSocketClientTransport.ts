@@ -1,5 +1,6 @@
 import {Transport} from '@modelcontextprotocol/sdk/shared/transport.js';
 import {JSONRPCMessageSchema, JSONRPCMessage} from '@modelcontextprotocol/sdk/types.js'
+import { WebSocket } from "ws";
 const SUBPROTOCOL = "mcp";
 
 export class WebSocketClientTransport implements Transport {
@@ -42,7 +43,7 @@ export class WebSocketClientTransport implements Transport {
                 var _a, _b;
                 let message;
                 try{
-                    message = JSONRPCMessageSchema.parse(JSON.parse(event.data));
+                    message = JSONRPCMessageSchema.parse(JSON.parse(String(event.data)));
                 }catch (error){
                     (_a = this.onerror) === null || _a === void 0 ? void 0 : _a.call(this, error as Error);
                     return;

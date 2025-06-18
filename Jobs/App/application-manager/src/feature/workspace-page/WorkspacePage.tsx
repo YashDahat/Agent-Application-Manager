@@ -12,7 +12,6 @@ import {SidebarInset, SidebarProvider, SidebarTrigger,} from "@/components/ui/si
 import {Button} from "@/components/ui/button.tsx";
 import {useEffect, useState} from "react";
 import {useSearchParams} from "react-router-dom";
-import {MCPClient} from "@/client/MCP_Client.ts";
 import {Input} from "@/components/ui/input.tsx";
 import {
     Select,
@@ -23,34 +22,29 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import {getJobDetails, getJobListing, JobDetails, jobDetailsToString} from "@/services/JobServices.ts";
+import { getJobListing, JobDetails} from "@/services/JobServices.ts";
 import {FilePlus, FilePlus2, HardDriveUpload, Loader2, Search, Send} from "lucide-react";
 import {PdfUploadDialog} from "@/common-components/aam-file-uploader/PdfUploadDialog.tsx";
 import {toast} from "sonner";
 import {Label} from "@/components/ui/label.tsx";
 import {ConfirmCreateResume} from "@/feature/workspace-page/confirm-create-resume-dialog/ConfirmCreateResume.tsx";
-import pdfToText from "react-pdftotext";
-import {setItem} from "@/utils/localStorage.ts";
+import { setItem } from "@/utils/localStorage.ts";
 import {AgGrid} from "@/common-components/aam-ag-grid/AgGrid.tsx";
 import {IActionProps, IColumnProps, ITableProps} from "@/common-components/aam-ag-grid/table-props/TableProps.ts";
 import {ReferralCreatingDialog} from "@/feature/workspace-page/referral-creating-dialog/ReferralCreatingDialog.tsx";
 
-const access_token_key = 'access_token';
-
-const BASE_SERVER = import.meta.env.VITE_BASE_URL;
+export const access_token_key = 'access_token';
 
 export const WorkspacePage = () => {
     const [searchParams] = useSearchParams();
-    const [client, setClient] = useState<MCPClient | null>(null);
     const [role, setRole] = useState<string>('');
     const [location, setLocation] = useState<string>('');
     const [datePosted, setDatePosted] = useState<string>('');
     const [jobs, setJobs] = useState<JobDetails[]>([]);
+    const [selectedJobs, setSelectedJobs] = useState<JobDetails[]>([]);
     const [uploadedResume, setUploadedResume] = useState<File|null>(null);
     const [isCreateResume, setIsCreateResume] = useState<boolean>(false);
     const [isCreateReferral, setIsCreateReferral] = useState<boolean>(false);
-    const [referralMessage, setReferralMessage] = useState<string>('');
-    const [isReferralMessageLoading, setIsReferralmessageLoading] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
     const columns: IColumnProps[] = [
@@ -69,16 +63,7 @@ export const WorkspacePage = () => {
                 return;
             }
             window.open(new URL(jobDetails.resumeUrl));
-        }},
-        // { key: 'createResume', label: 'Create Resume', design: 'ghost', icon: <FilePlus2/>, selectedCellEventHandler: async (data) => {
-        //     if(!uploadedResume){
-        //         toast.error('Resume has not been uploaded yet.');
-        //         return;
-        //     }
-        //     console.log('Jobs Details:', data);
-        //     const updateJobs = jobs.filter((job) => job.jobId == data.jobId);
-        //     await createResume(updateJobs);
-        // }}
+        }}
     ]
 
     const actions: IActionProps[] = [
@@ -92,7 +77,9 @@ export const WorkspacePage = () => {
                 }
                 const jobDetails = data as JobDetails;
                 const updateJobs = jobs.filter((job) => job.jobId == jobDetails.jobId);
-                await createResume(updateJobs);
+                setSelectedJobs(updateJobs);
+                setIsCreateResume(true);
+                setIsLoading(true);
             },
             design: 'ghost'
         },
@@ -106,79 +93,13 @@ export const WorkspacePage = () => {
                 }
                 const jobDetails = data as JobDetails;
                 const updateJobs = jobs.filter((job) => job.jobId == jobDetails.jobId);
-                await createReferralMessage(updateJobs);
+                setSelectedJobs(updateJobs);
                 setIsCreateReferral(true);
             },
             design: 'ghost'
         }
     ]
 
-    const init = async () => {
-        const c = new MCPClient();
-        await c.connectToServer(BASE_SERVER+"/mcp/connection");
-        setClient(c);
-    };
-
-    const createResume = async (jobsToCreateResume: JobDetails[]) => {
-        if(!uploadedResume) return;
-        setIsLoading(true);
-        console.log('Jobs we got for processing:', jobsToCreateResume);
-        const resumeData = await pdfToText(uploadedResume);
-        for(let i=0; i<jobsToCreateResume.length; i++){
-            const updatedJobDetails : JobDetails = await getJobDetails(jobsToCreateResume[i].jobId);
-            console.log('Updated job details:', updatedJobDetails);
-            const response = await client?.getPrompt('create-resume', {
-                "ReferenceResume": resumeData,
-                "JobDetails": jobDetailsToString(updatedJobDetails)
-            })
-
-            //console.log('Response for job:', jobsToCreateResume[i].jobTitle, ', response we got:', response);
-            if (response) {
-                const message = response.messages[0].content.text;
-                console.log('Messages we got:', message);
-                const finalMessage = await client?.processQuery(message);
-                console.log('Final message we got:', finalMessage);
-                if(finalMessage){
-                    console.log('Data from final message:', finalMessage['docUrl']);
-                    console.log('Data from final message:', finalMessage['docUrl']);
-                    jobsToCreateResume[i].resumeUrl = finalMessage['docUrl'];
-                    jobsToCreateResume[i].isResumeAvailable = true;
-                }
-            }
-        }
-        setIsLoading(false);
-    }
-
-    const createReferralMessage = async (jobDetails: JobDetails[]) => {
-        console.log('Job Details we received:', jobDetails);
-        const resumeData = await pdfToText(uploadedResume!);
-        for(let i=0; i<jobDetails.length; i++){
-            console.log('Job currently we are on:', jobDetails[i]);
-            const updatedJobDetails = await getJobDetails(jobDetails[i].jobId);
-            const response = await client?.getPrompt('create-referral-message',
-            {
-                "ReferenceResume": resumeData,
-                "JobDetails": jobDetailsToString(updatedJobDetails)
-            });
-            console.log('Generated Prompt for referral:', response);
-            if(response){
-                const generatedPrompt = response.messages[0].content.text;
-                setIsReferralmessageLoading(true);
-                client?.processQuery(generatedPrompt).then(
-                    response => {
-                        console.log('Final response : ', response);
-                        const referralMessage = response.message as string;
-                        console.log('Referral Message:', referralMessage);
-                        setReferralMessage(referralMessage);
-                        setIsReferralmessageLoading(false);
-                    }, error => {
-                        console.log('Error while creating referral message:', error);
-                        setIsReferralmessageLoading(false);
-                    }
-                )
-            }
-        }
-    }
 
     const handleJobSearch = async () =>{
         console.log('Job search params:', role, ', location:', location, ', date posted:', datePosted);
@@ -195,29 +116,9 @@ export const WorkspacePage = () => {
         )
     }
 
-    const handleCreateResume = async () => {
-        //Bring the job details for 3 jobs which don't for which we didn't created resume yet
-        //Call job details api for each such job
-        // Get first 3 jobs without resume
-        if(jobs.length == 0){
-            toast.error('No jobs are selected yet.');
-            return;
-        }
-        if(!uploadedResume){
-            toast.error('No reference resume is uploaded.');
-            return;
-        }
-
-        const jobsToCreateResume = jobs
-            .filter(job => !job.resumeUrl || job.resumeUrl == '') // filter jobs without resume
-            .slice(0, Math.min(1, jobs.length)); // take first 3
-
-        await createResume(jobsToCreateResume);
-    }
     useEffect(() => {
         const accessToken = searchParams.get("access_token");
         setItem(access_token_key, accessToken);
-        init();
     }, []);
 
     const tableProps: ITableProps = {
@@ -302,15 +203,17 @@ export const WorkspacePage = () => {
                     </div>
                 </div>
                 <ConfirmCreateResume isOpen={isCreateResume}
-                                     onClose={() => {
-                                         setIsCreateResume(false)
-                                     }}
-                                     handleConfirmation={handleCreateResume}/>
-                <ReferralCreatingDialog message={referralMessage} 
-                isOpen={isCreateReferral} 
-                onClose={()=>{setIsCreateReferral(false)}}
-                isLoading={isReferralMessageLoading}
-                />
+                                    onClose={() => {
+                                        setIsCreateResume(false)
+                                        setIsLoading(false);
+                                    }}
+                                    referenceResume={uploadedResume!}
+                                    jobs={selectedJobs}/>
+                <ReferralCreatingDialog isOpen={isCreateReferral} 
+                                        onClose={()=>{setIsCreateReferral(false)}}
+                                        referenceResume={uploadedResume!}
+                                        job={selectedJobs[0]}
+                                        />
             </SidebarInset>
         </SidebarProvider>
     )

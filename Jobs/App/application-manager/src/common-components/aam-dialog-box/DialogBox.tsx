@@ -8,10 +8,12 @@ import {
 } from "@/components/ui/dialog";
 import {Button} from "@/components/ui/button";
 import React from "react";
+import { Loader2 } from "lucide-react";
 
 interface IDialogBoxProps {
     isOpen: boolean;
     title: string;
+    isLoading?: boolean;
     description?: string;
     confirmText?: string;
     cancelText?: string;
@@ -23,7 +25,6 @@ export function DialogBox(props: IDialogBoxProps) {
 
     const handleConfirm = () => {
         props.onConfirm();
-        props.onClose();
     };
 
     const handleCancel = () => {
@@ -31,7 +32,7 @@ export function DialogBox(props: IDialogBoxProps) {
     };
 
     return (
-        <Dialog open={props.isOpen} onOpenChange={(open) => {if(!open){ console.log('on open changed!:', open); props.onClose() }}}>
+        <Dialog open={props.isOpen}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>{props.title}</DialogTitle>
@@ -43,6 +44,7 @@ export function DialogBox(props: IDialogBoxProps) {
                         {props.cancelText}
                     </Button>
                     <Button onClick={handleConfirm}>{props.confirmText}</Button>
+                    { props.isLoading ? <Loader2  className="animate-spin"/>:<></> }
                 </DialogFooter>
             </DialogContent>
         </Dialog>

@@ -6,6 +6,7 @@ import {WebSocket, WebSocketServer} from "ws";
 import {WebsocketTransport} from "./transport/Websocket.js";
 import Routes from "./routes/Routes.js"
 import {MCPServerHandler} from "./mcp/MCPServerHandler.js";
+import { MCPClientHandler } from "./mcp/MCPClientHandler.js";
 
 dotenv.config();
 

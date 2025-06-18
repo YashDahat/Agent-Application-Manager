@@ -1,33 +1,25 @@
-import {Anthropic} from "@anthropic-ai/sdk";
-import {Client} from "@modelcontextprotocol/sdk/client/index.js";
+import Anthropic from "@anthropic-ai/sdk";
 import {MessageCreateParamsBase, MessageParam, Tool} from "@anthropic-ai/sdk/resources/messages/messages.mjs";
-import {getItem} from "@/utils/localStorage.ts";
-import {WebSocketClientTransport} from "@/transport/WebSocketClientTransport.ts";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { WebSocketClientTransport } from "../transport/WebSocketClientTransport.js";
 
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const MCP_CONNECTION_URL = process.env.MCP_CONNECTION_URL;
 
-const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
-if (!ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY is not set");
-}
-
-
-export class MCPClient {
+export class MCPClientHandler {
     private mcp: Client;
     private llm: Anthropic;
     private transport: WebSocketClientTransport | null = null;
     public tools: Tool[] = [];
     private prompts: any[] = []
-    private accessToken : string | null = null;
-
 
     constructor() {
         this.llm = new Anthropic({apiKey: ANTHROPIC_API_KEY, dangerouslyAllowBrowser: true});
         this.mcp = new Client({ name: "mcp-client", version: "1.0.0" }, { capabilities: {} });
-        this.accessToken = getItem('access_token');
     }
 
-    public async connectToServer(url: string) {
-        this.transport = new WebSocketClientTransport(new URL(url), this.onCloseForConnection);
+    public async connectToServer() {
+        this.transport = new WebSocketClientTransport(new URL(String(MCP_CONNECTION_URL)), this.onCloseForConnection);
         await this.connect();
     }
 
@@ -35,7 +27,10 @@ export class MCPClient {
         if(this.transport){
             try {
                 // Await the connection before calling anything else
-                await this.mcp.connect(this.transport);
+                console.log('We are here 2');
+                const connectResponse = await this.mcp.connect(this.transport);
+                console.log('Connected to server:', connectResponse);
+
                 const toolsResult = await this.mcp.listTools();
                 this.tools = toolsResult.tools.map(tool => {
                     return {
@@ -64,7 +59,7 @@ export class MCPClient {
         }
     }
 
-    async processQuery(query: string): Promise<any> {
+    async processQuery(query: string, accessToken: string): Promise<any> {
         const messages: MessageParam[] = [
             {
                 role: 'user',
@@ -81,7 +76,7 @@ export class MCPClient {
         }
         console.log('Body we got for request:', body);
         const response = await this.llm.messages.create(body);
-        return await this.recursiveToolCall(response, messages);
+        return await this.recursiveToolCall(response, messages, accessToken);
     }
 
     async cleanup() {
@@ -89,7 +84,7 @@ export class MCPClient {
         await this.mcp.close();
     }
 
-    async recursiveToolCall( message: any, messages: MessageParam[]): Promise<any>{
+    async recursiveToolCall( message: any, messages: MessageParam[], accessToken: string): Promise<any>{
         for(let content of message.content){
             if(content.type == 'text'){
                 //Push message to the message list
@@ -97,20 +92,19 @@ export class MCPClient {
                 messages.push({
                     role: 'assistant',
                     content: JSON.stringify(message)
-                })
+                });
                 if(this.isValidJson(content.text)){
-                    console.log('It is a valid json.')
                     return JSON.parse(content.text);
                 }
             }else if(content.type == 'tool_use'){
                 const toolName = content.name;
                 let toolArgs = content.input as { [x: string]: unknown } | undefined;
                 if (toolArgs && 'accessToken' in toolArgs) {
-                    toolArgs['accessToken'] = this.accessToken;
+                    toolArgs['accessToken'] = accessToken;
                     console.log("Access Token:", toolArgs['accessToken']);
                 } else {
                     console.log("accessToken is missing in toolArgs");
-                    toolArgs = {...toolArgs, 'accessToken': this.accessToken};
+                    toolArgs = {...toolArgs, 'accessToken': accessToken};
                 }
                 console.log('Tool call received from the LLM: toolname:', toolName, ', toolArgs:', toolArgs)
 
@@ -135,7 +129,7 @@ export class MCPClient {
                         tools: this.tools
                     }
                     const llmResponse = await this.llm.messages.create(body);
-                    return await this.recursiveToolCall(llmResponse, messages);
+                    return await this.recursiveToolCall(llmResponse, messages, accessToken);
                 }
             }
         }
